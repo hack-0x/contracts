@@ -12,46 +12,46 @@ contract UserRegistry {
         string profilePhoto;
         string name;
         string description;
-        string[] skills;
+        string[] skills; // atestations
     }
 
-    mapping(address => UserInfo) private UserInformation;
-    mapping(address => bool) private Authorized;
+    mapping(address => UserInfo) private s_UserInformation;
+    mapping(address => bool) private s_Admin;
 
-    error NotAuthorized();
-    error NotUser();
+    error UserRegistry__NotAdmin();
+    error UserRegistry__NotUser();
 
     // Users may be SafeMultisig Wallets with a custom module of our own to
     // pay ourselfs the transactions
 
     modifier onlyUser() {
         if (isUser(msg.sender) != true) {
-            revert NotUser();
+            revert UserRegistry__NotUser();
         }
         _;
     }
 
-    modifier onlyAuthorized() {
-        if (Authorized[msg.sender] != true) {
-            revert NotAuthorized();
+    modifier onlyAdmin() {
+        if (s_Admin[msg.sender] != true) {
+            revert UserRegistry__NotAdmin();
         }
         _;
     }
 
-    constructor(address _authorized) {
-        Authorized[_authorized] = true;
-        Authorized[msg.sender] = true;
+    constructor(address _userRegistry, address _admin) {
+        s_Admin[_admin] = true;
+        s_Admin[msg.sender] = true;
     }
 
     /*
-     *   OnlyAuthorized Functions
+     *   Only Admin Functions
      */
-    function addAuthorized(address _authorized) public onlyAuthorized {
-        Authorized[_authorized] = true;
+    function addAdmin(address _admin) public onlyAdmin {
+        s_Admin[_admin] = true;
     }
 
-    function addUser(address user) public onlyAuthorized {
-        UserInformation[user].isUser = true;
+    function addUser(address _user) public onlyAdmin {
+        s_UserInformation[_user].isUser = true;
     }
 
     /*
@@ -59,21 +59,21 @@ contract UserRegistry {
      */
 
     /// @notice Checks if address is user in DAO
-    /// @param user address
+    /// @param _user address
     /// @return boolean
-    function isUser(address user) public view returns (bool) {
-        return UserInformation[user].isUser;
+    function isUser(address _user) public view returns (bool) {
+        return s_UserInformation[_user].isUser;
     }
 
     /// @notice Gets information about User
     /// @dev returns UID of EAS attestations
-    /// @param user address
+    /// @param _user address
     /// @return Info about the user
-    function getUserInfo(address user) external view returns (UserInfo memory) {
-        return UserInformation[user];
+    function getUserInfo(address _user) external view returns (UserInfo memory) {
+        return s_UserInformation[_user];
     }
 
-    function isAuthorized(address user) external view returns (bool) {
-        return Authorized[user];
+    function isAdmin(address _user) external view returns (bool) {
+        return s_Admin[_user];
     }
 }

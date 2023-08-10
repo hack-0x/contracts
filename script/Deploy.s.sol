@@ -5,22 +5,26 @@ pragma solidity ^0.8.18;
 import "../contracts/Project.sol";
 import "../contracts/UserRegistry.sol";
 import "./DeployHelpers.s.sol";
+import "../contracts/Attester.sol";
 
 contract DeployScript is ScaffoldETHDeploy {
     function run() external {
         uint256 deployerPrivateKey = setupLocalhostEnv();
+
+        address EASContract = getEASContract();
+
         vm.startBroadcast(deployerPrivateKey);
 
         UserRegistry userRegistry = new UserRegistry(
             0x0f4322635b17775CF7F6A42537Ccc11874342B55
         );
 
-        // UsersRegistry userRegistry = new UsersRegistry(address(0));
-
         Project project = new Project(
             0x0f4322635b17775CF7F6A42537Ccc11874342B55,
             address(userRegistry)
         );
+
+        AttesterCustom attesterCustom = new Attester(EASContract);
 
         vm.stopBroadcast();
         /**

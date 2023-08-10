@@ -30,6 +30,14 @@ contract ScaffoldETHDeploy is Script {
         }
     }
 
+    function getEASContract() internal view returns (address EASContract) {
+        if (block.chainid == 420) {
+            return address(0x1a5650D0EcbCa349DD84bAFa85790E3e6955eb84);
+        } else {
+            return address(1);
+        }
+    }
+
     function exportDeployments() internal {
         // fetch already existing contracts
         root = vm.projectRoot();
