@@ -81,7 +81,9 @@ contract Attester {
             );
     }
 
-    function isAuthorized(address _user) public returns (bool isAuthorized) {
+    function isAuthorized(
+        address _user
+    ) public view returns (bool isAuthorized) {
         return s_Authorized[_user];
     }
 }
