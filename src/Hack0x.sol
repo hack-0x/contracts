@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract Merit is ERC20 {
     constructor() ERC20("Merit", "MERIT") {}
 
-    function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
+    function _transfer(address from, address to, uint256 value) internal override {
         revert("Merit is not transferable");
     }
 }
