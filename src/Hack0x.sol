@@ -156,7 +156,8 @@ contract Hack0x is Ownable{
         require(userInfos[msg.sender].userType == UserType.INVESTOR, "user must be an investor");
         ProjectInfo storage projectInfo = projectInfos[SAFE];
         projectInfo.investors.push(msg.sender);
-        projectInfo.prize += msg.value; // ?
+        projectInfo.prize += msg.value;
+        transfer(SAFE, msg.value);
         //  merit._mint(msg.sender, msg.value); ?? 
     }
 
@@ -168,6 +169,7 @@ contract Hack0x is Ownable{
     function _distributePrizeToDAO(address SAFE) internal {
         ProjectInfo storage project = projectInfos[SAFE];
         uint256 DAOShare = project.prize * DAOSharePercentage / 100;
+        //send from SAFE to address(this), revert on failure
         project.prize -= DAOShare;
     }
 
