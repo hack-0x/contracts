@@ -5,24 +5,19 @@ pragma solidity ^0.8.18;
 import "../src/Project.sol";
 import "../src/UserRegistry.sol";
 import "./DeployHelpers.s.sol";
-import "../src/Attester.sol";
-
-}
-
+import "../src/EAS/Attester.sol";
 
 contract DeployScript is ScaffoldETHDeploy {
     function run() external {
         uint256 deployerPrivateKey = setupLocalhostEnv();
 
-        address EASContract = getEASContract();
+        // address easContract = getEASContract();
 
         vm.startBroadcast(deployerPrivateKey);
 
         // UserRegistry userRegistry = new UserRegistry(
         //     0x0f4322635b17775CF7F6A42537Ccc11874342B55
         // );
-
-
 
         // {
         //     name: "Test Project",
@@ -32,7 +27,6 @@ contract DeployScript is ScaffoldETHDeploy {
         //     fundingGoal: 1000,
         //     fundedAmount: 0
         // }
-
 
         // Project project = new Project(
         //     0x0f4322635b17775CF7F6A42537Ccc11874342B55,
@@ -48,10 +42,8 @@ contract DeployScript is ScaffoldETHDeploy {
          * This function should be called last.
          */
 
-
         // exportDeployments();
-        
-        
+
         // If your chain is not present in foundry's stdChain, then you need to call function with chainName:
         // exportDeployments("chiado")
     }
