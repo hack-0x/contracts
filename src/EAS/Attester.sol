@@ -25,6 +25,15 @@ contract Attester {
         _;
     }
 
+    constructor(address _eas, address _authorized) {
+        if (address(_eas) == address(0)) {
+            revert Attester__InvalidEAS();
+        }
+
+        s_eas = IEAS(_eas);
+        s_Authorized[_authorized] = true;
+    }
+
     function setAttestSkillSchema(bytes32 _schemaId) public onlyAuthorized {
         s_attestSkillSchema = _schemaId;
     }
@@ -39,15 +48,6 @@ contract Attester {
 
     function setDoneTaskSkillSchema(bytes32 _schemaId) public onlyAuthorized {
         s_doneTaskSkillSchema = _schemaId;
-    }
-
-    constructor(address _eas, address _authorized) {
-        if (address(_eas) == address(0)) {
-            revert Attester__InvalidEAS();
-        }
-
-        s_eas = IEAS(_eas);
-        s_Authorized[_authorized] = true;
     }
 
     function attestTask(
@@ -113,10 +113,10 @@ contract Attester {
             );
     }
 
-    function attestSkill(
-        address _user,
-        string memory _skill
-    ) internal returns (bytes32) {
+    function attestSkill(address _user, string memory _skill)
+        internal
+        returns (bytes32)
+    {
         return
             s_eas.attest(
                 AttestationRequest({
@@ -133,9 +133,15 @@ contract Attester {
             );
     }
 
-    function isAuthorized(
-        address _user
-    ) public view returns (bool isAuthorized) {
+    /*
+     *   Getter Functions
+     */
+
+    function isAdminAuthorized(address _user)
+        public
+        view
+        returns (bool isAuthorized)
+    {
         return s_Authorized[_user];
     }
 }
