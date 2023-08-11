@@ -144,4 +144,24 @@ contract Attester {
     {
         return s_Authorized[_user];
     }
+
+    function getEAS() public view returns (IEAS) {
+        return s_eas;
+    }
+
+    function getAttestSkillSchema() public view returns (bytes32) {
+        return s_attestSkillSchema;
+    }
+
+    function getEndorseSkillSchema() public view returns (bytes32) {
+        return s_endorseSkillSchema;
+    }
+
+    function getTaskSchema() public view returns (bytes32) {
+        return s_taskSchema;
+    }
+
+    function getDoneTaskSkillSchema() public view returns (bytes32) {
+        return s_doneTaskSkillSchema;
+    }
 }
