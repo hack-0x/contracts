@@ -3,7 +3,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "./interfaces/IUserRegistry.sol";
-import "./Attester.sol";
+import "./EAS/Attester.sol";
 
 struct ProjectData {
     string name;
