@@ -113,10 +113,10 @@ contract Attester {
             );
     }
 
-    function attestSkill(
-        address _user,
-        string memory _skill
-    ) internal returns (bytes32) {
+    function attestSkill(address _user, string memory _skill)
+        internal
+        returns (bytes32)
+    {
         return
             s_eas.attest(
                 AttestationRequest({
@@ -133,9 +133,11 @@ contract Attester {
             );
     }
 
-    function isAuthorized(
-        address _user
-    ) public view returns (bool isAuthorized) {
+    function isAdminAuthorized(address _user)
+        public
+        view
+        returns (bool isAuthorized)
+    {
         return s_Authorized[_user];
     }
 }
