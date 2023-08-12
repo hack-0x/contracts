@@ -1,11 +1,8 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
-// import "../contracts/YourContract.sol";
-import "../src/Project.sol";
-import "../src/UserRegistry.sol";
 import "./DeployHelpers.s.sol";
-import "../src/EAS/Attester.sol";
+import "../src/EAS/Attesters/Attester.sol";
 
 contract DeployScript is ScaffoldETHDeploy {
     function run() external {
