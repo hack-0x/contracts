@@ -27,32 +27,12 @@ import "./Common.sol";
 contract TaskDoneResolver is SchemaResolver {
     using Address for address payable;
 
-    error InvalidValue();
-
     IERC20 private immutable i_meritToken;
     IEAS private immutable i_eas;
 
     constructor(IEAS _eas, address _meritToken) SchemaResolver(_eas) {
-        i_meritToken = IERC20(_meritToken);
         i_eas = _eas;
-    }
-
-    /*
-     *   For Merit Token
-     */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override {
-        revert("Merit is not transferable");
-    }
-
-    /*
-     *   For SchemaResolver
-     */
-    function isPayable() public pure override returns (bool) {
-        return true;
+        i_meritToken = IERC20(_meritToken);
     }
 
     function onAttest(
