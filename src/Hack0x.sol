@@ -8,7 +8,22 @@ import "./Hack0xDAOPrizePool.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
-contract Hack0x is Ownable{
+contract Hack0x is Ownable {
+    enum UserType {
+        CREATOR,
+        BUIDLER,
+        INVESTOR
+    }
+
+    enum ProjectLabel {
+        DEFI,
+        NFT,
+        GAMING,
+        METAVERSE,
+        DAO,
+        INFRASTRUCTURE,
+        OTHER
+    }
 
     enum PrizeDistributionType { EQUAL, MERIT }
    
@@ -16,6 +31,7 @@ contract Hack0x is Ownable{
         bool joined;
         address[] projects;
     }
+
 
     struct HackathonInfo {
         uint256 startTimestamp;
@@ -67,7 +83,10 @@ contract Hack0x is Ownable{
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO
 
     modifier onlyCreator(address SAFE) {
-        require(projectInfos[SAFE].creator == msg.sender, "User must be the project creator");
+        require(
+            projectInfos[SAFE].isCreator[msg.sender],
+            "User must be a creator"
+        );
         _;
     }
 
@@ -82,7 +101,7 @@ contract Hack0x is Ownable{
         require(
             hackathonInfos[project.hackathonId].endTimestamp > block.timestamp,
             "Project's hackathon must not have ended"
-            );
+        );
         _;
     }
 
@@ -96,6 +115,7 @@ contract Hack0x is Ownable{
         _;
     }
 
+
     constructor(address EAS) {
         owner = msg.sender;
         manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
@@ -104,6 +124,8 @@ contract Hack0x is Ownable{
         prizePool = new Hack0xDAOPrizePool(address(merit)); // create DAO prize pool contract
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
+
+
 
     function createHackathon(
         uint256 startTimestamp,
@@ -247,5 +269,12 @@ contract Hack0x is Ownable{
         merit.mint(user, value);
         project.merits[user] += value;
         project.totalMerits += value;
+    }
+
+    /*
+     *     Helper functions
+     */
+    function isUserInDao(address _user) public view returns (bool) {
+        return userInfos[_user].joined == true;
     }
 }
