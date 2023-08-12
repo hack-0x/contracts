@@ -2,27 +2,20 @@
 
 pragma solidity >=0.8.19 <0.9.0;
 
+import "./Hack0xMerit.sol";
+import "./Hack0xManifesto.sol";
+import "./Hack0xDAOPrizePool.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract Merit is ERC20 {
-    constructor() ERC20("Merit", "MERIT") {}
-
-    function _transfer(address from, address to, uint256 value) internal override {
-        revert("Merit is not transferable");
-    }
-}
 
 contract Hack0x is Ownable{
 
     enum UserType { CREATOR, BUIDLER, INVESTOR }
 
-    enum ProjectLabel { DEFI, NFT, GAMING, METAVERSE, DAO, INFRASTRUCTURE, OTHER }
-
     enum PrizeDistributionType { EQUAL, MERIT }
    
     struct UserInfo {   // roles, skills - offchain
-        UserType userType;
+        bool joined;
         address[] projects;
     }
 
@@ -34,7 +27,7 @@ contract Hack0x is Ownable{
     struct Task {
         address taskCreator;
         address taskBuidler;
-        uint8 taskValue;
+        uint256 taskValue;
         uint256 taskDeadline;
         bool taskCompleted;
     }
@@ -48,28 +41,29 @@ contract Hack0x is Ownable{
 
     struct ProjectInfo {
         address SAFE;
-        ProjectLabel[] labels;
-        mapping(address => uint256) investors;
-        address[] buidlers;
-        //  address[] creators;
-        mapping(address => bool) isCreator;
-        mapping(address => string) joinRequests; // mapping of buidler address to link to their work
         uint256 hackathonId;
         PrizeDistributionType prizeDistributionType;
         uint256 predictiveValue;
         uint256 prize;
+        address[] team;
         Task[] tasks;
         bool closed;
+        mapping(address => string) joinRequests; // mapping of buidler address to link to their work
+        mapping(address => bool) isCreator;
+        mapping(address => bool) isBuidler;
+        mapping(address => uint256) investors; // mapping of investor address to amount invested
     }
 
-    Merit public immutable merit;
+    Hack0xMerit public immutable merit;
+    Hack0xManifesto public immutable manifesto;
+    Hack0xDAOPrizePool public immutable prizePool;
 
     mapping(address => UserInfo) public userInfos;
     HackathonInfo[] public hackathonInfos;
     mapping(address => ProjectInfo) public projectInfos;
 
     uint256 constant MAX_INT = 2 ** 256 - 1;
-    uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO - have it changeable???
+    uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO
 
     modifier onlyCreator(address SAFE) {
         require(projectInfos[SAFE].isCreator[msg.sender], "User must be a creator");
@@ -101,9 +95,12 @@ contract Hack0x is Ownable{
         _;
     }
 
-    constructor() {
+    constructor(address EAS) {
         owner = msg.sender;
-        merit = new Merit();
+        manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
+        merit = new Merit(); // create merit token from within the contract, making this contract it's admin
+        merit.grantRole(DEFAULT_ADMIN_ROLE, EAS); // grant EAS the ability to mint merit tokens
+        prizePool = new Hack0xDAOPrizePool(address(merit)); // create DAO prize pool contract
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
 
@@ -111,131 +108,132 @@ contract Hack0x is Ownable{
         uint256 startTimestamp,
         uint256 endTimestamp
     ) public onlyOwner returns (uint256) {
-        require(
-            startTimestamp < endTimestamp,
-            "startTimestamp must be before endTimestamp"
-        );
-        HackathonInfo memory hackathonInfo = HackathonInfo(
-            startTimestamp,
-            endTimestamp
-        );
+        require(startTimestamp < endTimestamp, "startTimestamp must be before endTimestamp");
+        HackathonInfo memory hackathonInfo = HackathonInfo(startTimestamp, endTimestamp);
         hackathonInfos.push(hackathonInfo);
         return hackathonInfos.length - 1;
     }
 
-    function joinDAO(UserType usertype) public {
-        require(
-            userInfos[msg.sender].userType == UserType(0),
-            "User already joined"
-        );
-        userInfos[msg.sender].userType = usertype;
+    function signManifestoAndJoinDAO() public {
+        require(userInfos[msg.sender].userType == UserType(0), "User already joined");
+        require(msg.value == 10 ether, "Must send 10 OP to join DAO");
+        manifesto.sign(); // mints 1 manifesto NFT to the sender
+        userInfos[msg.sender].joined = true;
     }
 
     function createProject(
         address SAFE,
-        ProjectLabel[] memory labels,
         uint256 hackathonId,
         PrizeDistributionType prizeDistributionType,
         uint256 predictiveValue
     ) public {
-        require(
-            userInfos[msg.sender].userType == UserType.CREATOR,
-            "User must be a creator"
-        );
-        require(
-            hackathonInfos[hackathonId].endTimestamp > block.timestamp,
-            "Hackathon must not have ended"
-        );
-        require(
-            projectInfos[SAFE].creators.length == 0,
-            "Project already exists"
-        );
+        require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
+        require(projectInfos[SAFE].creators.length == 0,"Project already exists");
         require(SAFE != address(0), "SAFE address must be set");
         ProjectInfo memory projectInfo = ProjectInfo(
             SAFE,
-            labels,
-            new address[](0),
-            new address[](0),
-            new address[](0),
             hackathonId,
             prizeDistributionType,
-            predictiveValue
+            predictiveValue,
+            0,
+            [msg.sender],
+            new Task[](0),
+            false
         );
         projectInfos[SAFE] = projectInfo;
         projectInfos[SAFE].isCreator[msg.sender] = true;
+
         userInfos[msg.sender].projects.push(SAFE);
-        //  merit._mint(msg.sender, prizeForCreatingProject); ??
     }
 
-    function requestToJoinProject(
-        address SAFE,
-        string link
-    ) external projectExists(SAFE) {
-        require(
-            userInfos[msg.sender].userType == UserType.BUIDLER,
-            "user must be a buidler"
-        );
-
-        ProjectInfo storage projectInfo = projectInfos[SAFE];
-        projectInfo.joinRequests[msg.sender] = link;
+    function requestToJoinProject(address SAFE, string link) external projectExists(SAFE) {
+        projectInfos[SAFE].joinRequests[msg.sender] = link;
     }
 
-    function getJoinRequestLink(
-        address SAFE,
-        address buidler
-    ) external view returns (string memory) {
+    function getJoinRequestLink(address SAFE, address buidler) external view returns (string memory) {
         return projectInfos[SAFE].joinRequests[buidler];
     }
 
-    function approveJoinRequest(
-        address SAFE,
-        address buidler
-    ) external projectLive(SAFE) onlyCreator(SAFE) {
+    function approveJoinRequest(address SAFE, address buidler) external projectLive(SAFE) onlyCreator(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
-        require(
-            project.joinRequests[buidler] != "",
-            "buidler must have requested to join"
-        );
-        project.buidlers.push(buidler);
+        require(project.joinRequests[buidler] != "", "buidler must have requested to join");
+        require(!project.isBuidler[buidler], "buidler is already a buidler on this project");
+        project.isBuidler[buidler] = true;
         userInfos[buidler].projects.push(SAFE);
         delete project.joinRequests[buidler];
-        //  merit._mint(msg.sender, prizeForJoiningProject); ??
     }
 
     function createTask(
         address SAFE,
-        uint8 value,
+        uint256 value,
         uint256 deadline
     ) external projectLive(SAFE) onlyCreator(SAFE) returns (uint256) {
+        require(value > 0 && value < 6, "Task value must be between 1 and 5");
+        require(deadline > block.timestamp, "Deadline must be in the future");
         ProjectInfo storage project = projectInfos[SAFE];
         Task memory task = Task(msg.sender, value, deadline, false);
         project.tasks.push(task);
         return project.tasks.length - 1;
     }
 
+    function pickUpTask(address SAFE, uint256 taskId) external projectLive(SAFE) {
+        ProjectInfo storage project = projectInfos[SAFE];
+        Task storage task = project.tasks[taskId];
+        require(!task.done, "Task must not be done");
+        require(task.deadline > block.timestamp, "Task must not be overdue");
+        require(project.isBuidler[msg.sender], "User must be a buidler of the project");
+        require(task.pickedUpBy == address(0), "Task already picked up");
+        task.pickedUpBy = msg.sender;
+    }
+
+    function dropTask(address SAFE, uint256 taskId) external projectLive(SAFE) {
+        ProjectInfo storage project = projectInfos[SAFE];
+        Task storage task = project.tasks[taskId];
+        require(!task.done, "Task must not be done");
+        require(task.deadline > block.timestamp, "Task must not be overdue");
+        require(task.pickedUpBy == msg.sender, "Task must have been picked up by the sender");
+        task.pickedUpBy = address(0);
+    }
+
+    function approveTaskDone(address SAFE, uint256 taskId, address buidler) external projectLive(SAFE) {
+        ProjectInfo storage project = projectInfos[SAFE];
+        Task storage task = project.tasks[taskId];
+        require(task.creator == msg.sender, "Approver must be the creator of the task");
+        require(!task.done, "Task must not be done");
+        require(task.deadline > block.timestamp, "Task must not be overdue");
+        require(task.pickedUpBy == buidler, "Task must have been picked up by the buidler");
+        merit.mint(buidler, task.value);
+        task.done = true;
+    }
+
     function invest(address SAFE) external payable {
         //projectLive(SAFE)?
-        require(
-            userInfos[msg.sender].userType == UserType.INVESTOR,
-            "user must be an investor"
-        );
         ProjectInfo storage projectInfo = projectInfos[SAFE];
-        projectInfo.investors.push(msg.sender);
-        projectInfo.prize += msg.value;
-        transfer(SAFE, msg.value);
-        //  merit._mint(msg.sender, msg.value); ?? 
+        projectInfo[investors] += msg.value;
+        projectInfo.prize += msg.value; //TODO?
+        transfer(SAFE, msg.value); //TODO?
+        //  merit.mint(msg.sender, meritBasedOnAmount?); ?? TODO
     }
 
     function closeProject(address SAFE) external onlyCreator(SAFE) {
-        _distributePrizeToDAO(SAFE);
-        projectInfos[SAFE].closed = true;
-    }
-
-    function _distributePrizeToDAO(address SAFE) internal {
         ProjectInfo storage project = projectInfos[SAFE];
+        
         uint256 DAOShare = project.prize * DAOSharePercentage / 100;
-        //send from SAFE to address(this), revert on failure
-        project.prize -= DAOShare;
+        uint256 teamShare = project.prize - DAOShare;
+        
+        // send DOA share to DAOPrizePool
+        prizePool.send(DAOShare); //TODO: safer? OZ Address?
+
+        // send team share to creators & buidlers
+        for (uint256 i = 0; i < project.team.length; i++) {
+          ///TODO uint memberShare = 
+            address payable teamMember = payable(project.team[i]);
+            teamMember.send(memberShare);
+        }
+
+        _sendPrizeToInvestors(SAFE);
+        _sendPrizeToBuidlers(SAFE);
+        projectInfos[SAFE].closed = true;
     }
 
     function withdraw(address SAFE) external projectClosed(SAFE) {
