@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.21;
+pragma solidity >=0.8.19 <0.9.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -45,13 +45,13 @@ contract Hack0x is Ownable{
         uint256 questDeadline;
         bool questCompleted;
     }
-    
+
     struct ProjectInfo {
         address SAFE;
         ProjectLabel[] labels;
         mapping(address => uint256) investors;
         address[] buidlers;
-      //  address[] creators;
+        //  address[] creators;
         mapping(address => bool) isCreator;
         mapping(address => string) joinRequests; // mapping of buidler address to link to their work
         uint256 hackathonId;
@@ -68,7 +68,7 @@ contract Hack0x is Ownable{
     HackathonInfo[] public hackathonInfos;
     mapping(address => ProjectInfo) public projectInfos;
 
-    uint256 constant MAX_INT = 2**256 - 1;
+    uint256 constant MAX_INT = 2 ** 256 - 1;
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO - have it changeable???
 
     modifier onlyCreator(address SAFE) {
@@ -84,13 +84,19 @@ contract Hack0x is Ownable{
     modifier projectLive(address SAFE) {
         ProjectInfo project = projectInfos[SAFE];
         require(project.creators.length > 0, "Project must exist");
-        require(hackathonInfos[project.hackathonId].endTimestamp > block.timestamp, "Project's hackathon must not have ended");
+        require(
+            hackathonInfos[project.hackathonId].endTimestamp > block.timestamp,
+            "Project's hackathon must not have ended"
+            );
         _;
     }
 
     modifier projectClosed(address SAFE) {
         ProjectInfo project = projectInfos[SAFE];
-        require(hackathonInfos[project.hackathonId].endTimestamp < block.timestamp, "Project's hackathon must have ended");//or not?
+        require(
+            hackathonInfos[project.hackathonId].endTimestamp < block.timestamp,
+            "Project's hackathon must have ended"
+        ); //or not?
         require(project.closed, "Project must be closed");
         _;
     }
@@ -101,59 +107,118 @@ contract Hack0x is Ownable{
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
 
-    function createHackathon(uint256 startTimestamp, uint256 endTimestamp) public onlyOwner returns (uint256){
-        require(startTimestamp < endTimestamp, "startTimestamp must be before endTimestamp");
-        HackathonInfo memory hackathonInfo = HackathonInfo(startTimestamp, endTimestamp);
+    function createHackathon(
+        uint256 startTimestamp,
+        uint256 endTimestamp
+    ) public onlyOwner returns (uint256) {
+        require(
+            startTimestamp < endTimestamp,
+            "startTimestamp must be before endTimestamp"
+        );
+        HackathonInfo memory hackathonInfo = HackathonInfo(
+            startTimestamp,
+            endTimestamp
+        );
         hackathonInfos.push(hackathonInfo);
         return hackathonInfos.length - 1;
     }
 
     function joinDAO(UserType usertype) public {
-        require(userInfos[msg.sender].userType == UserType(0), "User already joined");
+        require(
+            userInfos[msg.sender].userType == UserType(0),
+            "User already joined"
+        );
         userInfos[msg.sender].userType = usertype;
     }
 
-    function createProject(address SAFE, ProjectLabel[] memory labels, uint256 hackathonId, PrizeDistributionType prizeDistributionType, uint256 predictiveValue) public {
-        require(userInfos[msg.sender].userType == UserType.CREATOR, "User must be a creator");
-        require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
-        require(projectInfos[SAFE].creators.length == 0, "Project already exists");
+    function createProject(
+        address SAFE,
+        ProjectLabel[] memory labels,
+        uint256 hackathonId,
+        PrizeDistributionType prizeDistributionType,
+        uint256 predictiveValue
+    ) public {
+        require(
+            userInfos[msg.sender].userType == UserType.CREATOR,
+            "User must be a creator"
+        );
+        require(
+            hackathonInfos[hackathonId].endTimestamp > block.timestamp,
+            "Hackathon must not have ended"
+        );
+        require(
+            projectInfos[SAFE].creators.length == 0,
+            "Project already exists"
+        );
         require(SAFE != address(0), "SAFE address must be set");
-        ProjectInfo memory projectInfo = ProjectInfo(SAFE, labels, new address[](0), new address[](0), new address[](0), hackathonId, prizeDistributionType, predictiveValue);
+        ProjectInfo memory projectInfo = ProjectInfo(
+            SAFE,
+            labels,
+            new address[](0),
+            new address[](0),
+            new address[](0),
+            hackathonId,
+            prizeDistributionType,
+            predictiveValue
+        );
         projectInfos[SAFE] = projectInfo;
         projectInfos[SAFE].isCreator[msg.sender] = true;
         userInfos[msg.sender].projects.push(SAFE);
-      //  merit._mint(msg.sender, prizeForCreatingProject); ?? 
+        //  merit._mint(msg.sender, prizeForCreatingProject); ??
     }
 
-    function requestToJoinProject(address SAFE, string link) external projectExists(SAFE){
-        require(userInfos[msg.sender].userType == UserType.BUIDLER, "user must be a buidler");
+    function requestToJoinProject(
+        address SAFE,
+        string link
+    ) external projectExists(SAFE) {
+        require(
+            userInfos[msg.sender].userType == UserType.BUIDLER,
+            "user must be a buidler"
+        );
 
         ProjectInfo storage projectInfo = projectInfos[SAFE];
         projectInfo.joinRequests[msg.sender] = link;
     }
 
-    function getJoinRequestLink(address SAFE, address buidler) external view returns (string memory) {
+    function getJoinRequestLink(
+        address SAFE,
+        address buidler
+    ) external view returns (string memory) {
         return projectInfos[SAFE].joinRequests[buidler];
     }
 
-    function approveJoinRequest(address SAFE, address buidler) external projectLive(SAFE) onlyCreator(SAFE) {
+    function approveJoinRequest(
+        address SAFE,
+        address buidler
+    ) external projectLive(SAFE) onlyCreator(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
-        require(project.joinRequests[buidler] != "", "buidler must have requested to join");
+        require(
+            project.joinRequests[buidler] != "",
+            "buidler must have requested to join"
+        );
         project.buidlers.push(buidler);
         userInfos[buidler].projects.push(SAFE);
         delete project.joinRequests[buidler];
-        //  merit._mint(msg.sender, prizeForJoiningProject); ?? 
+        //  merit._mint(msg.sender, prizeForJoiningProject); ??
     }
 
-    function createTask(address SAFE, uint8 value, uint256 deadline) external projectLive(SAFE) onlyCreator(SAFE) returns (uint256) {
+    function createTask(
+        address SAFE,
+        uint8 value,
+        uint256 deadline
+    ) external projectLive(SAFE) onlyCreator(SAFE) returns (uint256) {
         ProjectInfo storage project = projectInfos[SAFE];
         Task memory task = Task(msg.sender, value, deadline, false);
         project.tasks.push(task);
         return project.tasks.length - 1;
     }
 
-    function invest(address SAFE) external payable  { //projectLive(SAFE)?
-        require(userInfos[msg.sender].userType == UserType.INVESTOR, "user must be an investor");
+    function invest(address SAFE) external payable {
+        //projectLive(SAFE)?
+        require(
+            userInfos[msg.sender].userType == UserType.INVESTOR,
+            "user must be an investor"
+        );
         ProjectInfo storage projectInfo = projectInfos[SAFE];
         projectInfo.investors.push(msg.sender);
         projectInfo.prize += msg.value;
@@ -186,9 +251,11 @@ contract Hack0x is Ownable{
     }
 
     function withdraw() external {
-        require(userInfos[msg.sender].userType != UserType(0), "User has not joined the DAO");
-        uint256 amount = merit.balanceOf(msg.sender) / merit.totalSupply() * address(this).balance; // ?
-        
+        require(
+            userInfos[msg.sender].userType != UserType(0),
+            "User has not joined the DAO"
+        );
+        uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) *
+            address(this).balance; // ?
     }
-
 }

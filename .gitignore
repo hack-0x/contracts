@@ -16,3 +16,8 @@ docs/
 
 localhost.json
 */.DS_Store
+
+
+.vscode
+
+remappings.txt

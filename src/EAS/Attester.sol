@@ -10,6 +10,8 @@ contract Attester {
 
     bytes32 private s_attestSkillSchema;
     bytes32 private s_endorseSkillSchema;
+    bytes32 private s_taskSchema;
+    bytes32 private s_doneTaskSkillSchema;
     IEAS private immutable s_eas;
     mapping(address => bool) private s_Authorized;
 
@@ -31,13 +33,63 @@ contract Attester {
         s_endorseSkillSchema = _schemaId;
     }
 
-    constructor(address _eas) {
+    function setTaskSchema(bytes32 _schemaId) public onlyAuthorized {
+        s_taskSchema = _schemaId;
+    }
+
+    function setDoneTaskSkillSchema(bytes32 _schemaId) public onlyAuthorized {
+        s_doneTaskSkillSchema = _schemaId;
+    }
+
+    constructor(address _eas, address _authorized) {
         if (address(_eas) == address(0)) {
             revert Attester__InvalidEAS();
         }
 
         s_eas = IEAS(_eas);
-        s_Authorized[msg.sender] = true;
+        s_Authorized[_authorized] = true;
+    }
+
+    function attestTask(
+        address _project,
+        string memory _taskTitle,
+        string memory _taskDescription
+    ) internal returns (bytes32) {
+        return
+            s_eas.attest(
+                AttestationRequest({
+                    schema: s_attestSkillSchema, // attest skill schema
+                    data: AttestationRequestData({
+                        recipient: _project, // No recipient
+                        expirationTime: NO_EXPIRATION_TIME, // No expiration time
+                        revocable: true,
+                        refUID: EMPTY_UID, // No references UI
+                        data: abi.encode(_taskTitle, _taskDescription),
+                        value: 0 // No value/ETH
+                    })
+                })
+            );
+    }
+
+    function attestDoneTask(
+        bytes32 _refUID,
+        address _user,
+        bool _done
+    ) internal returns (bytes32) {
+        return
+            s_eas.attest(
+                AttestationRequest({
+                    schema: s_doneTaskSkillSchema, //endore schema
+                    data: AttestationRequestData({
+                        recipient: _user,
+                        expirationTime: NO_EXPIRATION_TIME, // No expiration time
+                        revocable: true,
+                        refUID: _refUID,
+                        data: abi.encode(_done),
+                        value: 0 // No value/ETH
+                    })
+                })
+            );
     }
 
     function endorseSkill(

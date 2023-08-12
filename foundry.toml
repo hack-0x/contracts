@@ -3,7 +3,9 @@ src = 'src'
 out = 'out'
 libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./" }]
-remappings = ["@eas=lib/eas-contracts/"]
+remappings = [
+  "@eas=lib/eas-contracts/",
+]
 
 
 [rpc_endpoints]

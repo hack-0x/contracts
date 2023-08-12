@@ -38,7 +38,7 @@ contract UserRegistry {
         _;
     }
 
-    constructor(address _userRegistry, address _admin) {
+    constructor(address _admin) {
         s_Admin[_admin] = true;
         s_Admin[msg.sender] = true;
     }
@@ -69,7 +69,9 @@ contract UserRegistry {
     /// @dev returns UID of EAS attestations
     /// @param _user address
     /// @return Info about the user
-    function getUserInfo(address _user) external view returns (UserInfo memory) {
+    function getUserInfo(
+        address _user
+    ) external view returns (UserInfo memory) {
         return s_UserInformation[_user];
     }
 
