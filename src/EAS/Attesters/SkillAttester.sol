@@ -44,6 +44,7 @@ contract SkillAttester {
     function _endorseSkill(
         IEAS eas,
         bytes32 _refUID,
+        address _from,
         address _user,
         bool _endorse
     ) internal returns (bytes32) {
@@ -56,7 +57,7 @@ contract SkillAttester {
                         expirationTime: NO_EXPIRATION_TIME, // No expiration time
                         revocable: true,
                         refUID: _refUID,
-                        data: abi.encode(_endorse),
+                        data: abi.encode(_from, _endorse),
                         value: 0 // No value/ETH
                     })
                 })

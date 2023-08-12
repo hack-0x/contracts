@@ -39,7 +39,11 @@ contract TaskDoneResolver is SchemaResolver {
         Attestation calldata attestation,
         uint256 value
     ) internal override returns (bool) {
-        if (value > 0) {
+        (address who, bool done) = abi.decode(
+            attestation.data,
+            (address, bool)
+        );
+        if (done == false) {
             return false;
         }
 
@@ -53,21 +57,23 @@ contract TaskDoneResolver is SchemaResolver {
             (uint256, uint256, uint256, string, string)
         );
 
-        // i_meritToken.mint(attestation.recipient, weight);
+        // i_meritToken.mint(who, weight);
 
         return true;
     }
 
     function onRevoke(
-        Attestation calldata /*attestation*/,
+        Attestation calldata attestation,
         uint256 /*value*/
     ) internal pure override returns (bool) {
-        // i_meritToken.burn(attestation.recipient, weight);
+        (address who, ) = abi.decode(attestation.data, (address, bool));
+
+        // i_meritToken.burn(who, weight);
 
         return true;
     }
 
     function getMeritTokenAddress() public view returns (address) {
-        return i_meritToken;
+        return address(i_meritToken);
     }
 }

@@ -33,6 +33,6 @@ contract ProjectCreatedResolver is SchemaResolver {
     }
 
     function getMeritTokenAddress() public view returns (address) {
-        return i_meritToken;
+        return address(i_meritToken);
     }
 }

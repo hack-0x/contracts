@@ -125,7 +125,7 @@ contract Hack0x is Ownable {
 
     constructor() {
         owner = msg.sender;
-        merit = new Merit();
+        merit = new Merit(); // make merit in a separated contract ?
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
 
@@ -277,5 +277,9 @@ contract Hack0x is Ownable {
         );
         uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) *
             address(this).balance; // ?
+    }
+
+    function isUserInDao(address _user) public view returns (bool) {
+        return userInfos[_user].userType != UserType(0);
     }
 }

@@ -61,11 +61,11 @@ contract TaskAttester {
                 AttestationRequest({
                     schema: s_doneTaskSkillSchema, //endore schema
                     data: AttestationRequestData({
-                        recipient: _user,
+                        recipient: address(0),
                         expirationTime: NO_EXPIRATION_TIME, // No expiration time
                         revocable: true,
                         refUID: _refUID,
-                        data: abi.encode(_done),
+                        data: abi.encode(_user, _done),
                         value: 0 // No value/ETH
                     })
                 })
