@@ -5,6 +5,7 @@ libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./" }]
 remappings = [
   "@eas=lib/eas-contracts/",
+  "@openzeppelin-latest/=lib/openzeppelin-contracts/",
 ]
 
 

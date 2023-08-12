@@ -8,9 +8,22 @@ import "./Hack0xDAOPrizePool.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
-contract Hack0x is Ownable{
+contract Hack0x is Ownable {
+    enum UserType {
+        CREATOR,
+        BUIDLER,
+        INVESTOR
+    }
 
-    enum UserType { CREATOR, BUIDLER, INVESTOR }
+    enum ProjectLabel {
+        DEFI,
+        NFT,
+        GAMING,
+        METAVERSE,
+        DAO,
+        INFRASTRUCTURE,
+        OTHER
+    }
 
     enum PrizeDistributionType { EQUAL, MERIT }
    
@@ -18,6 +31,7 @@ contract Hack0x is Ownable{
         bool joined;
         address[] projects;
     }
+
 
     struct HackathonInfo {
         uint256 startTimestamp;
@@ -66,7 +80,10 @@ contract Hack0x is Ownable{
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO
 
     modifier onlyCreator(address SAFE) {
-        require(projectInfos[SAFE].isCreator[msg.sender], "User must be a creator");
+        require(
+            projectInfos[SAFE].isCreator[msg.sender],
+            "User must be a creator"
+        );
         _;
     }
 
@@ -81,7 +98,7 @@ contract Hack0x is Ownable{
         require(
             hackathonInfos[project.hackathonId].endTimestamp > block.timestamp,
             "Project's hackathon must not have ended"
-            );
+        );
         _;
     }
 
@@ -95,6 +112,7 @@ contract Hack0x is Ownable{
         _;
     }
 
+
     constructor(address EAS) {
         owner = msg.sender;
         manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
@@ -103,6 +121,8 @@ contract Hack0x is Ownable{
         prizePool = new Hack0xDAOPrizePool(address(merit)); // create DAO prize pool contract
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
+
+
 
     function createHackathon(
         uint256 startTimestamp,
@@ -208,32 +228,34 @@ contract Hack0x is Ownable{
 
     function invest(address SAFE) external payable {
         //projectLive(SAFE)?
-        ProjectInfo storage projectInfo = projectInfos[SAFE];
-        projectInfo[investors] += msg.value;
-        projectInfo.prize += msg.value; //TODO?
+        require(msg.value > 0, "Must send more than 0 OP");
+        require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
+        ProjectInfo storage project = projectInfos[SAFE];
+        if(project.investors[msg.sender] == 0)
+            project.team.push(msg.sender);
+        project.investors[msg.sender] += msg.value;
+        project.totalInvestment += msg.value;
         transfer(SAFE, msg.value); //TODO?
-        //  merit.mint(msg.sender, meritBasedOnAmount?); ?? TODO
     }
 
     function closeProject(address SAFE) external onlyCreator(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
-        
+        _addMerit(project, msg.sender, 3); // reward creator with 3 merits for finishing project
         uint256 DAOShare = project.prize * DAOSharePercentage / 100;
         uint256 teamShare = project.prize - DAOShare;
         
         // send DOA share to DAOPrizePool
         prizePool.send(DAOShare); //TODO: safer? OZ Address?
 
-        // send team share to creators & buidlers
+        // send team share to creators, buidlers and investors
         for (uint256 i = 0; i < project.team.length; i++) {
-          ///TODO uint memberShare = 
+            uint memberShare = project.investors[project.team[i]]/project.totalInvestment +
+             project.merits[project.team[i]]/project.totalMerits; //TODO get it right :)
             address payable teamMember = payable(project.team[i]);
             teamMember.send(memberShare);
         }
 
-        _sendPrizeToInvestors(SAFE);
-        _sendPrizeToBuidlers(SAFE);
-        projectInfos[SAFE].closed = true;
+        project.closed = true;
     }
 
     function withdraw(address SAFE) external projectClosed(SAFE) {
@@ -255,5 +277,12 @@ contract Hack0x is Ownable{
         );
         uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) *
             address(this).balance; // ?
+    }
+
+    /*
+     *     Helper functions
+     */
+    function isUserInDao(address _user) public view returns (bool) {
+        return userInfos[_user].joined == true;
     }
 }
