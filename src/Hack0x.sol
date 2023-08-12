@@ -8,20 +8,39 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract Merit is ERC20 {
     constructor() ERC20("Merit", "MERIT") {}
 
-    function _transfer(address from, address to, uint256 value) internal override {
+    function _transfer(
+        address from,
+        address to,
+        uint256 value
+    ) internal override {
         revert("Merit is not transferable");
     }
 }
 
-contract Hack0x is Ownable{
+contract Hack0x is Ownable {
+    enum UserType {
+        CREATOR,
+        BUIDLER,
+        INVESTOR
+    }
 
-    enum UserType { CREATOR, BUIDLER, INVESTOR }
+    enum ProjectLabel {
+        DEFI,
+        NFT,
+        GAMING,
+        METAVERSE,
+        DAO,
+        INFRASTRUCTURE,
+        OTHER
+    }
 
-    enum ProjectLabel { DEFI, NFT, GAMING, METAVERSE, DAO, INFRASTRUCTURE, OTHER }
+    enum PrizeDistributionType {
+        EQUAL,
+        MERIT
+    }
 
-    enum PrizeDistributionType { EQUAL, MERIT }
-   
-    struct UserInfo {   // roles, skills - offchain
+    struct UserInfo {
+        // roles, skills - offchain
         UserType userType;
         address[] projects;
     }
@@ -72,7 +91,10 @@ contract Hack0x is Ownable{
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO - have it changeable???
 
     modifier onlyCreator(address SAFE) {
-        require(projectInfos[SAFE].isCreator[msg.sender], "User must be a creator");
+        require(
+            projectInfos[SAFE].isCreator[msg.sender],
+            "User must be a creator"
+        );
         _;
     }
 
@@ -87,7 +109,7 @@ contract Hack0x is Ownable{
         require(
             hackathonInfos[project.hackathonId].endTimestamp > block.timestamp,
             "Project's hackathon must not have ended"
-            );
+        );
         _;
     }
 
@@ -223,7 +245,7 @@ contract Hack0x is Ownable{
         projectInfo.investors.push(msg.sender);
         projectInfo.prize += msg.value;
         transfer(SAFE, msg.value);
-        //  merit._mint(msg.sender, msg.value); ?? 
+        //  merit._mint(msg.sender, msg.value); ??
     }
 
     function closeProject(address SAFE) external onlyCreator(SAFE) {
@@ -233,7 +255,7 @@ contract Hack0x is Ownable{
 
     function _distributePrizeToDAO(address SAFE) internal {
         ProjectInfo storage project = projectInfos[SAFE];
-        uint256 DAOShare = project.prize * DAOSharePercentage / 100;
+        uint256 DAOShare = (project.prize * DAOSharePercentage) / 100;
         //send from SAFE to address(this), revert on failure
         project.prize -= DAOShare;
     }
@@ -259,6 +281,9 @@ contract Hack0x is Ownable{
             address(this).balance; // ?
     }
 
+    /*
+     *     Helper functions
+     */
     function isUserInDao(address _user) public view returns (bool) {
         return userInfos[_user].userType != UserType(0);
     }
