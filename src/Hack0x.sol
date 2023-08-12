@@ -10,8 +10,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Hack0x is Ownable{
 
-    enum UserType { CREATOR, BUIDLER, INVESTOR }
-
     enum PrizeDistributionType { EQUAL, MERIT }
    
     struct UserInfo {   // roles, skills - offchain
@@ -45,11 +43,14 @@ contract Hack0x is Ownable{
         PrizeDistributionType prizeDistributionType;
         uint256 predictiveValue;
         uint256 prize;
+        uint256 totalInvestment;
+        address creator;
         address[] team;
         Task[] tasks;
         bool closed;
+        uint256 totalMerits;
+        mapping (address => uint256) merits; // mapping of creator/buidler address to merits earned on project
         mapping(address => string) joinRequests; // mapping of buidler address to link to their work
-        mapping(address => bool) isCreator;
         mapping(address => bool) isBuidler;
         mapping(address => uint256) investors; // mapping of investor address to amount invested
     }
@@ -66,7 +67,7 @@ contract Hack0x is Ownable{
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO
 
     modifier onlyCreator(address SAFE) {
-        require(projectInfos[SAFE].isCreator[msg.sender], "User must be a creator");
+        require(projectInfos[SAFE].creator == msg.sender, "User must be the project creator");
         _;
     }
 
@@ -115,7 +116,7 @@ contract Hack0x is Ownable{
     }
 
     function signManifestoAndJoinDAO() public {
-        require(userInfos[msg.sender].userType == UserType(0), "User already joined");
+        require(userInfos[msg.sender].joined == false, "User already joined");
         require(msg.value == 10 ether, "Must send 10 OP to join DAO");
         manifesto.sign(); // mints 1 manifesto NFT to the sender
         userInfos[msg.sender].joined = true;
@@ -136,13 +137,14 @@ contract Hack0x is Ownable{
             prizeDistributionType,
             predictiveValue,
             0,
+            0,
+            msg.sender,
             [msg.sender],
             new Task[](0),
-            false
+            false,
+            0
         );
         projectInfos[SAFE] = projectInfo;
-        projectInfos[SAFE].isCreator[msg.sender] = true;
-
         userInfos[msg.sender].projects.push(SAFE);
     }
 
@@ -158,8 +160,10 @@ contract Hack0x is Ownable{
         ProjectInfo storage project = projectInfos[SAFE];
         require(project.joinRequests[buidler] != "", "buidler must have requested to join");
         require(!project.isBuidler[buidler], "buidler is already a buidler on this project");
+        project.team.push(buidler);
         project.isBuidler[buidler] = true;
         userInfos[buidler].projects.push(SAFE);
+        _addMerit(project, project.creator, 1); // reward creator with 1 merit for accepting a new buidler
         delete project.joinRequests[buidler];
     }
 
@@ -202,58 +206,46 @@ contract Hack0x is Ownable{
         require(!task.done, "Task must not be done");
         require(task.deadline > block.timestamp, "Task must not be overdue");
         require(task.pickedUpBy == buidler, "Task must have been picked up by the buidler");
-        merit.mint(buidler, task.value);
+        _addMerit(project, buidler, task.value);
+        _addMerit(project, project.creator, 1); // reward creator with 1 merit for a task done
         task.done = true;
     }
 
     function invest(address SAFE) external payable {
         //projectLive(SAFE)?
-        ProjectInfo storage projectInfo = projectInfos[SAFE];
-        projectInfo[investors] += msg.value;
-        projectInfo.prize += msg.value; //TODO?
+        require(msg.value > 0, "Must send more than 0 OP");
+        require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
+        ProjectInfo storage project = projectInfos[SAFE];
+        if(project.investors[msg.sender] == 0)
+            project.team.push(msg.sender);
+        project.investors[msg.sender] += msg.value;
+        project.totalInvestment += msg.value;
         transfer(SAFE, msg.value); //TODO?
-        //  merit.mint(msg.sender, meritBasedOnAmount?); ?? TODO
     }
 
     function closeProject(address SAFE) external onlyCreator(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
-        
+        _addMerit(project, msg.sender, 3); // reward creator with 3 merits for finishing project
         uint256 DAOShare = project.prize * DAOSharePercentage / 100;
         uint256 teamShare = project.prize - DAOShare;
         
         // send DOA share to DAOPrizePool
         prizePool.send(DAOShare); //TODO: safer? OZ Address?
 
-        // send team share to creators & buidlers
+        // send team share to creators, buidlers and investors
         for (uint256 i = 0; i < project.team.length; i++) {
-          ///TODO uint memberShare = 
+            uint memberShare = project.investors[project.team[i]]/project.totalInvestment +
+             project.merits[project.team[i]]/project.totalMerits; //TODO get it right :)
             address payable teamMember = payable(project.team[i]);
             teamMember.send(memberShare);
         }
 
-        _sendPrizeToInvestors(SAFE);
-        _sendPrizeToBuidlers(SAFE);
-        projectInfos[SAFE].closed = true;
+        project.closed = true;
     }
 
-    function withdraw(address SAFE) external projectClosed(SAFE) {
-        ProjectInfo storage project = projectInfos[SAFE];
-        require(project.prize > 0, "Project must have a prize");
-        if (userInfos[msg.sender].userType == UserType.INVESTOR) {
-            _withdrawInvestor(SAFE);
-        } else if (userInfos[msg.sender].userType == UserType.BUIDLER) {
-            _withdrawBuidler(SAFE);
-        } else {
-            _withdrawCreator(SAFE);
-        }
-    }
-
-    function withdraw() external {
-        require(
-            userInfos[msg.sender].userType != UserType(0),
-            "User has not joined the DAO"
-        );
-        uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) *
-            address(this).balance; // ?
+    function _addMerit(ProjectInfo project, address user, uint256 value) internal {
+        merit.mint(user, value);
+        project.merits[user] += value;
+        project.totalMerits += value;
     }
 }
