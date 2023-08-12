@@ -59,14 +59,11 @@ contract Hack0x is Ownable {
         PrizeDistributionType prizeDistributionType;
         uint256 predictiveValue;
         uint256 prize;
-        uint256 totalInvestment;
-        address creator;
         address[] team;
         Task[] tasks;
         bool closed;
-        uint256 totalMerits;
-        mapping (address => uint256) merits; // mapping of creator/buidler address to merits earned on project
         mapping(address => string) joinRequests; // mapping of buidler address to link to their work
+        mapping(address => bool) isCreator;
         mapping(address => bool) isBuidler;
         mapping(address => uint256) investors; // mapping of investor address to amount invested
     }
@@ -138,7 +135,7 @@ contract Hack0x is Ownable {
     }
 
     function signManifestoAndJoinDAO() public {
-        require(userInfos[msg.sender].joined == false, "User already joined");
+        require(userInfos[msg.sender].userType == UserType(0), "User already joined");
         require(msg.value == 10 ether, "Must send 10 OP to join DAO");
         manifesto.sign(); // mints 1 manifesto NFT to the sender
         userInfos[msg.sender].joined = true;
@@ -159,14 +156,13 @@ contract Hack0x is Ownable {
             prizeDistributionType,
             predictiveValue,
             0,
-            0,
-            msg.sender,
             [msg.sender],
             new Task[](0),
-            false,
-            0
+            false
         );
         projectInfos[SAFE] = projectInfo;
+        projectInfos[SAFE].isCreator[msg.sender] = true;
+
         userInfos[msg.sender].projects.push(SAFE);
     }
 
@@ -182,10 +178,8 @@ contract Hack0x is Ownable {
         ProjectInfo storage project = projectInfos[SAFE];
         require(project.joinRequests[buidler] != "", "buidler must have requested to join");
         require(!project.isBuidler[buidler], "buidler is already a buidler on this project");
-        project.team.push(buidler);
         project.isBuidler[buidler] = true;
         userInfos[buidler].projects.push(SAFE);
-        _addMerit(project, project.creator, 1); // reward creator with 1 merit for accepting a new buidler
         delete project.joinRequests[buidler];
     }
 
@@ -228,8 +222,7 @@ contract Hack0x is Ownable {
         require(!task.done, "Task must not be done");
         require(task.deadline > block.timestamp, "Task must not be overdue");
         require(task.pickedUpBy == buidler, "Task must have been picked up by the buidler");
-        _addMerit(project, buidler, task.value);
-        _addMerit(project, project.creator, 1); // reward creator with 1 merit for a task done
+        merit.mint(buidler, task.value);
         task.done = true;
     }
 
@@ -265,10 +258,25 @@ contract Hack0x is Ownable {
         project.closed = true;
     }
 
-    function _addMerit(ProjectInfo project, address user, uint256 value) internal {
-        merit.mint(user, value);
-        project.merits[user] += value;
-        project.totalMerits += value;
+    function withdraw(address SAFE) external projectClosed(SAFE) {
+        ProjectInfo storage project = projectInfos[SAFE];
+        require(project.prize > 0, "Project must have a prize");
+        if (userInfos[msg.sender].userType == UserType.INVESTOR) {
+            _withdrawInvestor(SAFE);
+        } else if (userInfos[msg.sender].userType == UserType.BUIDLER) {
+            _withdrawBuidler(SAFE);
+        } else {
+            _withdrawCreator(SAFE);
+        }
+    }
+
+    function withdraw() external {
+        require(
+            userInfos[msg.sender].userType != UserType(0),
+            "User has not joined the DAO"
+        );
+        uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) *
+            address(this).balance; // ?
     }
 
     /*
