@@ -9,7 +9,9 @@ import "./EAS/Attesters/Attester.sol";
 import "@openzeppelin-latest/contracts/access/Ownable.sol";
 import "@openzeppelin-latest/contracts/security/ReentrancyGuard.sol";
 
+
 contract Hack0x is Ownable, Attester, ReentrancyGuard {
+  
     enum PrizeDistributionType {
         EQUAL,
         MERIT
@@ -56,15 +58,17 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         Task[] tasks;
         bool closed;
         uint256 totalMerits; // total merits earned on project
-        mapping(address => uint256) projectMerits; // mapping of creator/buidler address to merits earned on project
+        mapping (address => uint256) projectMerits; // mapping of creator/buidler address to merits earned on project
         mapping(address => string) joinRequests; // mapping of buidler address to link to their work
         mapping(address => bool) isBuidler;
         mapping(address => uint256) investors; // mapping of investor address to amount invested
     }
 
-    Hack0xMerit public immutable merit;
+    IHack0xMerit public immutable merit;
     Hack0xManifesto public immutable manifesto;
-    Hack0xDAOPrizePool public immutable prizePool;
+
+    uint256 public DAOPrizePool;
+    uint256 public totalInvested;
 
     mapping(address => UserInfo) public userInfos;
     HackathonInfo[] public hackathonInfos;
@@ -73,6 +77,11 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
     uint256 constant MAX_INT = 2 ** 256 - 1;
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO
     bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
+
+    modifier onlyDAOMembers() {
+        require(UserInfo[msg.sender].joined == true, "User must be a DAO member");
+        _;
+    }
 
     modifier onlyCreator(uint256 projectId) {
         require(projectInfos[projectId].creator == msg.sender, "User must be the creator of the project");
@@ -134,12 +143,12 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         userInfos[msg.sender].joined = true;
     }
 
-    function createProject(uint256 hackathonId, PrizeDistributionType prizeDistributionType, uint256 predictiveValue)
-        public
-        returns (uint256 projectId)
-    {
+    function createProject(
+        uint256 hackathonId,
+        PrizeDistributionType prizeDistributionType,
+        uint256 predictiveValue
+    ) public onlyDAOMembers() returns (uint256 projectId) {
         require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
-        require(userInfos[msg.sender].joined == true, "User must have joined DAO");
 
         projectId = projectInfos.length;
         ProjectInfo storage project = projectInfos.push();
@@ -160,7 +169,11 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         projectInfos[projectId].SAFE = SAFE;
     }
 
-    function requestToJoinProject(uint256 projectId, string memory link) external projectExists(projectId) {
+    function requestToJoinProject(uint256 projectId, string memory link)
+        external
+        onlyDAOMembers()
+        projectLive(projectId)
+    {
         projectInfos[projectId].joinRequests[msg.sender] = link;
     }
 
@@ -168,11 +181,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         return projectInfos[projectId].joinRequests[buidler];
     }
 
-    function approveJoinRequest(uint256 projectId, address buidler)
-        external
-        projectLive(projectId)
-        onlyCreator(projectId)
-    {
+    function approveJoinRequest(uint256 projectId, address buidler) external projectLive(projectId) onlyCreator(projectId) {
         ProjectInfo storage project = projectInfos[projectId];
         require(
             keccak256(abi.encodePacked(project.joinRequests[buidler])) != keccak256(abi.encodePacked("")),
@@ -254,7 +263,6 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
 
     function invest(uint256 projectId) external payable projectLive(projectId) {
         require(msg.value > 0, "Must send more than 0 OP");
-        require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
         ProjectInfo storage project = projectInfos[projectId];
         //  if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
         //    project.team.push(msg.sender);
@@ -262,6 +270,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         project.totalInvestment += msg.value;
         project.prize += msg.value;
         userInfos[msg.sender].totalInvested += msg.value;
+        totalInvested += msg.value;
     }
 
     function win(uint256 projectId) external payable {
