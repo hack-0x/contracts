@@ -50,10 +50,12 @@ contract Hack0x is Ownable, Attester {
         uint256 predictiveValue;
         uint256 prize;
         uint256 totalInvestment;
-        address[] team;
         address creator;
+        address[] team;
         Task[] tasks;
         bool closed;
+        uint256 totalMerits; // total merits earned on project
+        mapping (address => uint256) projectMerits; // mapping of creator/buidler address to merits earned on project
         mapping(address => string) joinRequests; // mapping of buidler address to link to their work
         mapping(address => bool) isBuidler;
         mapping(address => uint256) investors; // mapping of investor address to amount invested
@@ -69,6 +71,7 @@ contract Hack0x is Ownable, Attester {
 
     uint256 constant MAX_INT = 2 ** 256 - 1;
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO
+    bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
 
     modifier onlyCreator(address SAFE) {
         require(projectInfos[SAFE].creator == msg.sender, "User must be the creator of the project");
@@ -108,12 +111,12 @@ contract Hack0x is Ownable, Attester {
         bytes32 _attestUserSchema
     )
         Attester(EAS, msg.sender, _attestTaskSchema, _doneTaskSchema, _projectCreationSchema, _attestUserSchema)
-        Ownable(msg.sender)
+        Ownable()
     {
         // _owner = msg.sender;
         manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
         merit = IHack0xMerit(_Hack0xMerit); // create merit token from within the contract, making this contract it's admin
-        merit.grantRole(merit.DEFAULT_ADMIN_ROLE, EAS); // grant EAS the ability to mint merit tokens
+        merit.grantRole(DEFAULT_ADMIN_ROLE, EAS); // grant EAS the ability to mint merit tokens
         prizePool = new Hack0xDAOPrizePool(address(merit)); // create DAO prize pool contract
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
@@ -181,9 +184,10 @@ contract Hack0x is Ownable, Attester {
             "buidler must have requested to join"
         );
         require(!project.isBuidler[buidler], "buidler is already a buidler on this project");
+        if (buidler!= project.creator && project.investors[buidler] == 0) project.team.push(buidler);
         project.isBuidler[buidler] = true;
-        if (project.creator != buidler) project.team.push(buidler);
         userInfos[buidler].projects.push(SAFE);
+        _addMerit(project, project.creator, 1); // reward creator with 1 merit for accepting a new buidler
         delete project.joinRequests[buidler];
     }
 
@@ -243,7 +247,8 @@ contract Hack0x is Ownable, Attester {
 
         attestApproveTaskDone(msg.sender, buidler, task.easUID);
 
-        merit.mint(buidler, task.taskValue);
+        _addMerit(project, buidler, task.value);
+        _addMerit(project, project.creator, 1); // reward creator with 1 merit for a task done
         task.taskCompleted = true;
     }
 
@@ -252,48 +257,37 @@ contract Hack0x is Ownable, Attester {
         require(msg.value > 0, "Must send more than 0 OP");
         require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
         ProjectInfo storage project = projectInfos[SAFE];
-        if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender]) project.team.push(msg.sender);
+        if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
+            project.team.push(msg.sender);
         project.investors[msg.sender] += msg.value;
         project.totalInvestment += msg.value;
-        // transfer(SAFE, msg.value); //TODO?
     }
 
-    // function closeProject(address SAFE) external onlyCreator(SAFE) {
-    //     ProjectInfo storage project = projectInfos[SAFE];
-    //     // _addMerit(project, msg.sender, 3); // reward creator with 3 merits for finishing project
-    //     uint256 DAOShare = project.prize * DAOSharePercentage / 100;
-    //     uint256 teamShare = project.prize - DAOShare;
+    function closeProject(address SAFE) external onlyCreator(SAFE) {
+        ProjectInfo storage project = projectInfos[SAFE];
+        _addMerit(project, msg.sender, 3); // reward creator with 3 merits for finishing project
+        uint256 DAOShare = project.prize * DAOSharePercentage / 100;
+        uint256 teamShare = project.prize - DAOShare;
 
-    //     // send DOA share to DAOPrizePool
-    //     prizePool.send(DAOShare); //TODO: safer? OZ Address?
+        // send DOA share to DAOPrizePool
+        prizePool.send(DAOShare); //TODO: safer? OZ Address?
 
-    //     // send team share to creators, buidlers and investors
-    //     for (uint256 i = 0; i < project.team.length; i++) {
-    //         uint256 memberShare = project.investors[project.team[i]] / project.totalInvestment
-    //             + project.merits[project.team[i]] / project.totalMerits; //TODO get it right :)
-    //         address payable teamMember = payable(project.team[i]);
-    //         teamMember.send(memberShare);
-    //     }
+        // send team share to creators, buidlers and investors
+        for (uint256 i = 0; i < project.team.length; i++) {
+            uint memberShare = project.investors[project.team[i]]/project.totalInvestment +
+             project.merits[project.team[i]]/project.totalMerits; //TODO get it right :)
+            address payable teamMember = payable(project.team[i]);
+            teamMember.send(memberShare);
+        }
 
-    //     project.closed = true;
-    // }
+        project.closed = true;
+    }
 
-    // function withdraw(address SAFE) external projectClosed(SAFE) {
-    //     ProjectInfo storage project = projectInfos[SAFE];
-    //     require(project.prize > 0, "Project must have a prize");
-    //     if (userInfos[msg.sender].userType == UserType.INVESTOR) {
-    //         // _withdrawInvestor(SAFE);
-    //     } else if (userInfos[msg.sender].userType == UserType.BUIDLER) {
-    //         // _withdrawBuidler(SAFE);
-    //     } else {
-    //         // _withdrawCreator(SAFE);
-    //     }
-    // }
-
-    // function withdraw() external {
-    //     require(userInfos[msg.sender].userType != UserType(0), "User has not joined the DAO");
-    //     uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) * address(this).balance; // ?
-    // }
+    function _addMerit(ProjectInfo memory project, address user, uint256 value) internal {
+        merit.mint(user, value);
+        project.merits[user] += value;
+        project.totalMerits += value;
+    }
 
     /*
      *     Helper functions

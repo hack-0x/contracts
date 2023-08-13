@@ -5,6 +5,7 @@ import "@openzeppelin-latest/contracts/access/AccessControl.sol";
 import "@openzeppelin-latest/contracts/token/ERC20/ERC20.sol";
 
 contract Hack0xMerit is ERC20, AccessControl {
+
     constructor() ERC20("Merit", "MERIT") {
         grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
