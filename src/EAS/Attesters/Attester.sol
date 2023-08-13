@@ -129,8 +129,8 @@ contract Attester is TaskAttester, ProjectAttester, UserAttester {
         return _attestApproveTaskDone(i_eas, _projectCreator, _buidler, _taskUID);
     }
 
-    function attestProjectCreation(address _creator, address _safeContract) internal returns (bytes32) {
-        return _attestProjectCreation(i_eas, _creator, _safeContract);
+    function attestProjectCreation(address _creator, uint256 _projectId) internal returns (bytes32) {
+        return _attestProjectCreation(i_eas, _creator, _projectId);
     }
 
     /*

@@ -14,7 +14,7 @@ contract ProjectAttester {
         s_projectCreationSchema = _schemaId;
     }
 
-    function _attestProjectCreation(IEAS eas, address _creator, address _safeContract) internal returns (bytes32) {
+    function _attestProjectCreation(IEAS eas, address _creator, uint256 _projectId) internal returns (bytes32) {
         return eas.attest(
             AttestationRequest({
                 schema: s_projectCreationSchema, // attest skill schema
@@ -23,7 +23,7 @@ contract ProjectAttester {
                     expirationTime: NO_EXPIRATION_TIME, // No expiration time
                     revocable: true,
                     refUID: EMPTY_UID, // No references UI
-                    data: abi.encode(_creator, _safeContract),
+                    data: abi.encode(_creator, _projectId),
                     value: 0 // No value/ETH
                 })
             })
