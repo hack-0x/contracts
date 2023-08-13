@@ -311,6 +311,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
 
     function withdrawFromPrizePool() external onlyDAOMembers() nonReentrant() {
         require(DAOPrizePool > 0, "DAO prize pool must be greater than 0");
+        
         uint256 memberShare = merit.balanceOf(msg.sender) / merit.totalSupply()
             + userInfos[msg.sender].totalInvested / totalInvested;
         uint256 prize = DAOPrizePool * memberShare / 2;
