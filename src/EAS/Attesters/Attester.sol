@@ -8,7 +8,7 @@ import {TaskAttester} from "./TaskAttester.sol";
 import {ProjectAttester} from "./ProjectAttester.sol";
 import {UserAttester} from "./UserAttester.sol";
 
-contract Attester is SkillAttester, TaskAttester, ProjectAttester, UserAttester {
+contract Attester is TaskAttester, ProjectAttester, UserAttester {
     address s_hackContract;
     IEAS private immutable i_eas;
     mapping(address => bool) private s_Authorized;
@@ -41,14 +41,11 @@ contract Attester is SkillAttester, TaskAttester, ProjectAttester, UserAttester 
     constructor(
         address _eas,
         address _authorized,
-        // bytes32 _attestSkillSchema,
-        // bytes32 _endorseSkillSchema,
         bytes32 _attestTaskSchema,
         bytes32 _doneTaskSchema,
         bytes32 _projectCreationSchema,
         bytes32 _attestUserSchema
     )
-        // SkillAttester(_attestSkillSchema, _endorseSkillSchema)
         TaskAttester(_attestTaskSchema, _doneTaskSchema)
         ProjectAttester(_projectCreationSchema)
         UserAttester(_attestUserSchema)
@@ -117,20 +114,23 @@ contract Attester is SkillAttester, TaskAttester, ProjectAttester, UserAttester 
     //     _endorseSkill(i_eas, _refUID, _from, _user, _endorse);
     // }
 
-    function attestUser(address _user) internal {
-        _attestUser(i_eas, _user, true);
+    function attestUser(address _user) internal returns (bytes32) {
+        return _attestUser(i_eas, _user, true);
     }
 
-    function attestTask(address _creator, uint256 _taskDeadLine) internal {
-        _attestTask(i_eas, _creator, _taskDeadLine);
+    function attestTask(address _creator, uint256 _taskDeadLine) internal returns (bytes32) {
+        return _attestTask(i_eas, _creator, _taskDeadLine);
     }
 
-    function attestApproveTaskDone(address _projectCreator, address _buidler, bytes32 _taskUID) internal {
-        _attestApproveTaskDone(i_eas, _projectCreator, _buidler, _taskUID);
+    function attestApproveTaskDone(address _projectCreator, address _buidler, bytes32 _taskUID)
+        internal
+        returns (bytes32)
+    {
+        return _attestApproveTaskDone(i_eas, _projectCreator, _buidler, _taskUID);
     }
 
-    function attestProjectCreation(address _creator, address _safeContract) internal {
-        _attestProjectCreation(i_eas, _creator, _safeContract);
+    function attestProjectCreation(address _creator, address _safeContract) internal returns (bytes32) {
+        return _attestProjectCreation(i_eas, _creator, _safeContract);
     }
 
     /*

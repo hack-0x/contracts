@@ -13,7 +13,7 @@ contract Hack0xMerit is ERC20, AccessControl {
         _mint(to, amount);
     }
 
-    function _transfer(address from, address to, uint256 value) internal override {
+    function _transfer(address, /*from*/ address, /*to*/ uint256 /*value*/ ) internal pure override {
         revert("Merit is not transferable");
     }
 }
