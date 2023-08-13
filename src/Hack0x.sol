@@ -287,7 +287,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         uint256 DAOShare = project.prize * DAOSharePercentage / 100;
         uint256 teamShare = project.prize - DAOShare;
 
-        // send DOA share to DAOPrizePool
+        // send DAO share to DAOPrizePool
         DAOPrizePool += DAOShare;
 
         if (project.prizeDistributionType == PrizeDistributionType.EQUAL) {
