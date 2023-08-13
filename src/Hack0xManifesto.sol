@@ -47,7 +47,11 @@ contract Hack0xManifesto is ERC721, ERC721Enumerable {
             || super.supportsInterface(interfaceId);
     }
 
-    function transferFrom(address, /*from*/ address, /*to*/ uint256 /*tokenId*/ ) public override(ERC721, IERC721) {
+    function transferFrom(address, /*from*/ address, /*to*/ uint256 /*tokenId*/ )
+        public
+        pure
+        override(ERC721, IERC721)
+    {
         revert("Hack0xManifesto is not transferable");
     }
 }

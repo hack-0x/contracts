@@ -119,7 +119,7 @@ contract Hack0x is Ownable, Attester {
 
     constructor(
         address EAS,
-        address Hack0xMerit,
+        address _Hack0xMerit,
         bytes32 _attestTaskSchema,
         bytes32 _doneTaskSchema,
         bytes32 _projectCreationSchema,
@@ -130,7 +130,7 @@ contract Hack0x is Ownable, Attester {
     {
         // _owner = msg.sender;
         manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
-        merit = IHack0xMerit(Hack0xMerit); // create merit token from within the contract, making this contract it's admin
+        merit = IHack0xMerit(_Hack0xMerit); // create merit token from within the contract, making this contract it's admin
         merit.grantRole(DEFAULT_ADMIN_ROLE, EAS); // grant EAS the ability to mint merit tokens
         prizePool = new Hack0xDAOPrizePool(address(merit)); // create DAO prize pool contract
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
@@ -290,22 +290,22 @@ contract Hack0x is Ownable, Attester {
     //     project.closed = true;
     // }
 
-    function withdraw(address SAFE) external projectClosed(SAFE) {
-        ProjectInfo storage project = projectInfos[SAFE];
-        require(project.prize > 0, "Project must have a prize");
-        if (userInfos[msg.sender].userType == UserType.INVESTOR) {
-            // _withdrawInvestor(SAFE);
-        } else if (userInfos[msg.sender].userType == UserType.BUIDLER) {
-            // _withdrawBuidler(SAFE);
-        } else {
-            // _withdrawCreator(SAFE);
-        }
-    }
+    // function withdraw(address SAFE) external projectClosed(SAFE) {
+    //     ProjectInfo storage project = projectInfos[SAFE];
+    //     require(project.prize > 0, "Project must have a prize");
+    //     if (userInfos[msg.sender].userType == UserType.INVESTOR) {
+    //         // _withdrawInvestor(SAFE);
+    //     } else if (userInfos[msg.sender].userType == UserType.BUIDLER) {
+    //         // _withdrawBuidler(SAFE);
+    //     } else {
+    //         // _withdrawCreator(SAFE);
+    //     }
+    // }
 
-    function withdraw() external {
-        require(userInfos[msg.sender].userType != UserType(0), "User has not joined the DAO");
-        uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) * address(this).balance; // ?
-    }
+    // function withdraw() external {
+    //     require(userInfos[msg.sender].userType != UserType(0), "User has not joined the DAO");
+    //     uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) * address(this).balance; // ?
+    // }
 
     /*
      *     Helper functions
