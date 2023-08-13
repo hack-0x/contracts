@@ -9,9 +9,7 @@ import "./EAS/Attesters/Attester.sol";
 import "@openzeppelin-latest/contracts/access/Ownable.sol";
 import "@openzeppelin-latest/contracts/security/ReentrancyGuard.sol";
 
-
 contract Hack0x is Ownable, Attester, ReentrancyGuard {
-  
     enum PrizeDistributionType {
         EQUAL,
         MERIT
@@ -58,13 +56,13 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         Task[] tasks;
         bool closed;
         uint256 totalMerits; // total merits earned on project
-        mapping (address => uint256) projectMerits; // mapping of creator/buidler address to merits earned on project
+        mapping(address => uint256) projectMerits; // mapping of creator/buidler address to merits earned on project
         mapping(address => string) joinRequests; // mapping of buidler address to link to their work
         mapping(address => bool) isBuidler;
         mapping(address => uint256) investors; // mapping of investor address to amount invested
     }
 
-    IHack0xMerit public immutable merit;
+    Hack0xMerit public immutable merit;
     Hack0xManifesto public immutable manifesto;
     Hack0xDAOPrizePool public immutable prizePool;
 
@@ -99,7 +97,6 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
 
     constructor(
         address EAS,
-        address _Hack0xMerit,
         bytes32 _attestTaskSchema,
         bytes32 _doneTaskSchema,
         bytes32 _projectCreationSchema,
@@ -110,9 +107,10 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
     {
         // _owner = msg.sender;
         manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
-        merit = IHack0xMerit(_Hack0xMerit); // create merit token from within the contract, making this contract it's admin
-        merit.grantRole(DEFAULT_ADMIN_ROLE, EAS); // grant EAS the ability to mint merit tokens
+        merit = new Hack0xMerit(); // create merit Token to be able to mint to within the contract
+        merit.grantRole(DEFAULT_ADMIN_ROLE, address(this)); // grant EAS the ability to mint merit tokens
         prizePool = new Hack0xDAOPrizePool(address(merit)); // create DAO prize pool contract
+        merit.grantRole(DEFAULT_ADMIN_ROLE, address(prizePool)); //
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
 
@@ -136,11 +134,10 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         userInfos[msg.sender].joined = true;
     }
 
-    function createProject(
-        uint256 hackathonId,
-        PrizeDistributionType prizeDistributionType,
-        uint256 predictiveValue
-    ) public returns (uint256 projectId) {
+    function createProject(uint256 hackathonId, PrizeDistributionType prizeDistributionType, uint256 predictiveValue)
+        public
+        returns (uint256 projectId)
+    {
         require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
         require(userInfos[msg.sender].joined == true, "User must have joined DAO");
 
@@ -171,14 +168,18 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         return projectInfos[projectId].joinRequests[buidler];
     }
 
-    function approveJoinRequest(uint256 projectId, address buidler) external projectLive(projectId) onlyCreator(projectId) {
+    function approveJoinRequest(uint256 projectId, address buidler)
+        external
+        projectLive(projectId)
+        onlyCreator(projectId)
+    {
         ProjectInfo storage project = projectInfos[projectId];
         require(
             keccak256(abi.encodePacked(project.joinRequests[buidler])) != keccak256(abi.encodePacked("")),
             "buidler must have requested to join"
         );
         require(!project.isBuidler[buidler], "buidler is already a buidler on this project");
-        if (buidler!= project.creator && project.investors[buidler] == 0) project.team.push(buidler);
+        if (buidler != project.creator && project.investors[buidler] == 0) project.team.push(buidler);
         project.isBuidler[buidler] = true;
         userInfos[buidler].projects.push(projectId);
         project.team.push(buidler);
@@ -229,7 +230,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         task.pickedUpBy = address(0);
     }
 
-    function approveTaskDone(uint256 projectId, uint256 taskId, address buidler) 
+    function approveTaskDone(uint256 projectId, uint256 taskId, address buidler)
         external
         projectLive(projectId)
         onlyCreator(projectId)
@@ -255,7 +256,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         require(msg.value > 0, "Must send more than 0 OP");
         require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
         ProjectInfo storage project = projectInfos[projectId];
-      //  if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
+        //  if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
         //    project.team.push(msg.sender);
         project.investors[msg.sender] += msg.value;
         project.totalInvestment += msg.value;
@@ -263,14 +264,14 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         userInfos[msg.sender].totalInvested += msg.value;
     }
 
-    function win(uint256 projectId) external payable{
+    function win(uint256 projectId) external payable {
         require(msg.value > 0, "Must send more than 0 OP");
         ProjectInfo storage project = projectInfos[projectId];
         require(!project.closed, "Project is closed");
         project.prize += msg.value;
     }
 
-    function closeProject(uint256 projectId) external onlyCreator(projectId) nonReentrant() {
+    function closeProject(uint256 projectId) external onlyCreator(projectId) nonReentrant {
         ProjectInfo storage project = projectInfos[projectId];
         _addMerit(project, msg.sender, 3); // reward creator with 3 merits for finishing project
 
@@ -284,7 +285,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         if (project.prizeDistributionType == PrizeDistributionType.EQUAL) {
             // send team share to all team members
             for (uint256 i = 0; i < project.team.length; i++) {
-                uint memberShare = teamShare / project.team.length;
+                uint256 memberShare = teamShare / project.team.length;
                 address payable teamMember = payable(project.team[i]);
                 sent = teamMember.send(memberShare);
                 require(sent, "Failed to send OP to team member");
@@ -292,10 +293,11 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         } else if (project.prizeDistributionType == PrizeDistributionType.MERIT) {
             // send team share by merit
             for (uint256 i = 0; i < project.team.length; i++) {
-                uint memberShare = (project.projectMerits[project.team[i]]/project.totalMerits) * teamShare;
+                uint256 memberShare = (project.projectMerits[project.team[i]] / project.totalMerits) * teamShare;
                 address payable teamMember = payable(project.team[i]);
                 sent = teamMember.send(memberShare);
-                require(sent, "Failed to send OP to team member");            }
+                require(sent, "Failed to send OP to team member");
+            }
         }
         project.closed = true;
     }
