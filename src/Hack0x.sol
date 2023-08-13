@@ -313,7 +313,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         require(DAOPrizePool > 0, "DAO prize pool must be greater than 0");
         uint256 memberShare = merit.balanceOf(msg.sender) / merit.totalSupply()
             + userInfos[msg.sender].totalInvested / totalInvested;
-        uint256 prize = DAOPrizePool * memberShare;
+        uint256 prize = DAOPrizePool * memberShare / 2;
         DAOPrizePool -= prize;
         address payable sender = payable(msg.sender);
         bool sent = sender.send(prize);
