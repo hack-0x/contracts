@@ -5,10 +5,10 @@ pragma solidity >=0.8.19 <0.9.0;
 import "./Hack0xMerit.sol";
 import "./Hack0xManifesto.sol";
 import "./Hack0xDAOPrizePool.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./EAS/Attesters/Attester.sol";
+import "@openzeppelin-latest/contracts/access/Ownable.sol";
 
-
-contract Hack0x is Ownable {
+contract Hack0x is Ownable, Attester {
     enum UserType {
         CREATOR,
         BUIDLER,
@@ -25,13 +25,16 @@ contract Hack0x is Ownable {
         OTHER
     }
 
-    enum PrizeDistributionType { EQUAL, MERIT }
-   
-    struct UserInfo {   // roles, skills - offchain
+    enum PrizeDistributionType {
+        EQUAL,
+        MERIT
+    }
+
+    struct UserInfo {
+        // roles, skills - offchain
         bool joined;
         address[] projects;
     }
-
 
     struct HackathonInfo {
         uint256 startTimestamp;
@@ -44,6 +47,7 @@ contract Hack0x is Ownable {
         uint256 taskValue;
         uint256 taskDeadline;
         bool taskCompleted;
+        bytes32 eas_UID;
     }
 
     struct OnboardingQuest {
@@ -78,6 +82,7 @@ contract Hack0x is Ownable {
 
     uint256 constant MAX_INT = 2 ** 256 - 1;
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO
+    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
 
     modifier onlyCreator(address SAFE) {
         require(
@@ -112,30 +117,48 @@ contract Hack0x is Ownable {
         _;
     }
 
-
-    constructor(address EAS) {
+    constructor(
+        address EAS,
+        bytes32 _attestTaskSchema,
+        bytes32 _doneTaskSchema,
+        bytes32 _projectCreationSchema,
+        bytes32 _attestUserSchema
+    )
+        Attester(
+            EAS,
+            msg.sender,
+            _attestTaskSchema,
+            _doneTaskSchema,
+            _projectCreationSchema,
+            _attestUserSchema
+        )
+    {
         owner = msg.sender;
         manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
-        merit = new Merit(); // create merit token from within the contract, making this contract it's admin
+        merit = new Hack0xMerit(); // create merit token from within the contract, making this contract it's admin
         merit.grantRole(DEFAULT_ADMIN_ROLE, EAS); // grant EAS the ability to mint merit tokens
         prizePool = new Hack0xDAOPrizePool(address(merit)); // create DAO prize pool contract
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
 
-
-
     function createHackathon(
         uint256 startTimestamp,
         uint256 endTimestamp
     ) public onlyOwner returns (uint256) {
-        require(startTimestamp < endTimestamp, "startTimestamp must be before endTimestamp");
-        HackathonInfo memory hackathonInfo = HackathonInfo(startTimestamp, endTimestamp);
+        require(
+            startTimestamp < endTimestamp,
+            "startTimestamp must be before endTimestamp"
+        );
+        HackathonInfo memory hackathonInfo = HackathonInfo(
+            startTimestamp,
+            endTimestamp
+        );
         hackathonInfos.push(hackathonInfo);
         return hackathonInfos.length - 1;
     }
 
     function signManifestoAndJoinDAO() public {
-        require(userInfos[msg.sender].userType == UserType(0), "User already joined");
+        require(userInfos[msg.sender].joined == false, "User already joined");
         require(msg.value == 10 ether, "Must send 10 OP to join DAO");
         manifesto.sign(); // mints 1 manifesto NFT to the sender
         userInfos[msg.sender].joined = true;
@@ -147,8 +170,14 @@ contract Hack0x is Ownable {
         PrizeDistributionType prizeDistributionType,
         uint256 predictiveValue
     ) public {
-        require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
-        require(projectInfos[SAFE].creators.length == 0,"Project already exists");
+        require(
+            hackathonInfos[hackathonId].endTimestamp > block.timestamp,
+            "Hackathon must not have ended"
+        );
+        require(
+            projectInfos[SAFE].creators.length == 0,
+            "Project already exists"
+        );
         require(SAFE != address(0), "SAFE address must be set");
         ProjectInfo memory projectInfo = ProjectInfo(
             SAFE,
@@ -163,21 +192,38 @@ contract Hack0x is Ownable {
         projectInfos[SAFE] = projectInfo;
         projectInfos[SAFE].isCreator[msg.sender] = true;
 
+        attestProjectCreation(msg.sender, SAFE);
+
         userInfos[msg.sender].projects.push(SAFE);
     }
 
-    function requestToJoinProject(address SAFE, string link) external projectExists(SAFE) {
+    function requestToJoinProject(
+        address SAFE,
+        string link
+    ) external projectExists(SAFE) {
         projectInfos[SAFE].joinRequests[msg.sender] = link;
     }
 
-    function getJoinRequestLink(address SAFE, address buidler) external view returns (string memory) {
+    function getJoinRequestLink(
+        address SAFE,
+        address buidler
+    ) external view returns (string memory) {
         return projectInfos[SAFE].joinRequests[buidler];
     }
 
-    function approveJoinRequest(address SAFE, address buidler) external projectLive(SAFE) onlyCreator(SAFE) {
+    function approveJoinRequest(
+        address SAFE,
+        address buidler
+    ) external projectLive(SAFE) onlyCreator(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
-        require(project.joinRequests[buidler] != "", "buidler must have requested to join");
-        require(!project.isBuidler[buidler], "buidler is already a buidler on this project");
+        require(
+            project.joinRequests[buidler] != "",
+            "buidler must have requested to join"
+        );
+        require(
+            !project.isBuidler[buidler],
+            "buidler is already a buidler on this project"
+        );
         project.isBuidler[buidler] = true;
         userInfos[buidler].projects.push(SAFE);
         delete project.joinRequests[buidler];
@@ -193,15 +239,25 @@ contract Hack0x is Ownable {
         ProjectInfo storage project = projectInfos[SAFE];
         Task memory task = Task(msg.sender, value, deadline, false);
         project.tasks.push(task);
+
+        // add task UID to task after attesting
+        task.eas_UID = attestTask(msg.sender, deadline);
+
         return project.tasks.length - 1;
     }
 
-    function pickUpTask(address SAFE, uint256 taskId) external projectLive(SAFE) {
+    function pickUpTask(
+        address SAFE,
+        uint256 taskId
+    ) external projectLive(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
         Task storage task = project.tasks[taskId];
         require(!task.done, "Task must not be done");
         require(task.deadline > block.timestamp, "Task must not be overdue");
-        require(project.isBuidler[msg.sender], "User must be a buidler of the project");
+        require(
+            project.isBuidler[msg.sender],
+            "User must be a buidler of the project"
+        );
         require(task.pickedUpBy == address(0), "Task already picked up");
         task.pickedUpBy = msg.sender;
     }
@@ -211,17 +267,36 @@ contract Hack0x is Ownable {
         Task storage task = project.tasks[taskId];
         require(!task.done, "Task must not be done");
         require(task.deadline > block.timestamp, "Task must not be overdue");
-        require(task.pickedUpBy == msg.sender, "Task must have been picked up by the sender");
+        require(
+            task.pickedUpBy == msg.sender,
+            "Task must have been picked up by the sender"
+        );
         task.pickedUpBy = address(0);
     }
 
-    function approveTaskDone(address SAFE, uint256 taskId, address buidler) external projectLive(SAFE) {
+    function approveTaskDone(
+        address SAFE,
+        uint256 taskId,
+        address buidler
+    ) external projectLive(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
         Task storage task = project.tasks[taskId];
-        require(task.creator == msg.sender, "Approver must be the creator of the task");
+
+        // get task UID
+
+        require(
+            task.creator == msg.sender,
+            "Approver must be the creator of the task"
+        );
         require(!task.done, "Task must not be done");
         require(task.deadline > block.timestamp, "Task must not be overdue");
-        require(task.pickedUpBy == buidler, "Task must have been picked up by the buidler");
+        require(
+            task.pickedUpBy == buidler,
+            "Task must have been picked up by the buidler"
+        );
+
+        attestApproveTaskDone(msg.sender, buidler, task.eas_UID);
+
         merit.mint(buidler, task.value);
         task.done = true;
     }
@@ -229,10 +304,12 @@ contract Hack0x is Ownable {
     function invest(address SAFE) external payable {
         //projectLive(SAFE)?
         require(msg.value > 0, "Must send more than 0 OP");
-        require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
+        require(
+            userInfos[msg.sender].joined,
+            "Sender must have joined the DAO"
+        );
         ProjectInfo storage project = projectInfos[SAFE];
-        if(project.investors[msg.sender] == 0)
-            project.team.push(msg.sender);
+        if (project.investors[msg.sender] == 0) project.team.push(msg.sender);
         project.investors[msg.sender] += msg.value;
         project.totalInvestment += msg.value;
         transfer(SAFE, msg.value); //TODO?
@@ -241,16 +318,18 @@ contract Hack0x is Ownable {
     function closeProject(address SAFE) external onlyCreator(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
         _addMerit(project, msg.sender, 3); // reward creator with 3 merits for finishing project
-        uint256 DAOShare = project.prize * DAOSharePercentage / 100;
+        uint256 DAOShare = (project.prize * DAOSharePercentage) / 100;
         uint256 teamShare = project.prize - DAOShare;
-        
+
         // send DOA share to DAOPrizePool
         prizePool.send(DAOShare); //TODO: safer? OZ Address?
 
         // send team share to creators, buidlers and investors
         for (uint256 i = 0; i < project.team.length; i++) {
-            uint memberShare = project.investors[project.team[i]]/project.totalInvestment +
-             project.merits[project.team[i]]/project.totalMerits; //TODO get it right :)
+            uint memberShare = project.investors[project.team[i]] /
+                project.totalInvestment +
+                project.merits[project.team[i]] /
+                project.totalMerits; //TODO get it right :)
             address payable teamMember = payable(project.team[i]);
             teamMember.send(memberShare);
         }
