@@ -46,15 +46,15 @@ contract Attester is
     constructor(
         address _eas,
         address _authorized,
-        bytes32 _attestSkillSchema,
-        bytes32 _endorseSkillSchema,
+        // bytes32 _attestSkillSchema,
+        // bytes32 _endorseSkillSchema,
         bytes32 _attestTaskSchema,
-        bytes32 _doneTaskSkillSchema,
+        bytes32 _doneTaskSchema,
         bytes32 _projectCreationSchema,
         bytes32 _attestUserSchema
     )
         // SkillAttester(_attestSkillSchema, _endorseSkillSchema)
-        TaskAttester(_attestTaskSchema, _doneTaskSkillSchema)
+        TaskAttester(_attestTaskSchema, _doneTaskSchema)
         ProjectAttester(_projectCreationSchema)
         UserAttester(_attestUserSchema)
     {
@@ -135,7 +135,7 @@ contract Attester is
         address _buidler,
         bytes32 _taskUID
     ) internal {
-        _attestApproveTaskDone(i_eas, _projectCreator, _builder, _taskUID);
+        _attestApproveTaskDone(i_eas, _projectCreator, _buidler, _taskUID);
     }
 
     function attestProjectCreation(

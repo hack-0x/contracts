@@ -5,11 +5,11 @@ import "./Common.sol";
 
 contract TaskAttester {
     bytes32 private s_taskSchema;
-    bytes32 private s_doneTaskSkillSchema;
+    bytes32 private s_doneTaskSchema;
 
-    constructor(bytes32 _taskSchema, bytes32 _doneTaskSkillSchema) {
+    constructor(bytes32 _taskSchema, bytes32 _doneTaskSchema) {
         s_taskSchema = _taskSchema;
-        s_doneTaskSkillSchema = _doneTaskSkillSchema;
+        s_doneTaskSchema = _doneTaskSchema;
     }
 
     function _setTaskSchema(bytes32 _schemaId) internal {
@@ -17,7 +17,7 @@ contract TaskAttester {
     }
 
     function _setDoneTaskSkillSchema(bytes32 _schemaId) internal {
-        s_doneTaskSkillSchema = _schemaId;
+        s_doneTaskSchema = _schemaId;
     }
 
     function _attestTask(
@@ -34,7 +34,7 @@ contract TaskAttester {
                         expirationTime: NO_EXPIRATION_TIME, // No expiration time
                         revocable: true,
                         refUID: EMPTY_UID, // No references UI
-                        data: abi.encode(_creator, _taskDeadline),
+                        data: abi.encode(_creator, _taskDeadLine),
                         value: 0 // No value/ETH
                     })
                 })
@@ -50,7 +50,7 @@ contract TaskAttester {
         return
             eas.attest(
                 AttestationRequest({
-                    schema: s_doneTaskSkillSchema, //endore schema
+                    schema: s_doneTaskSchema, //endore schema
                     data: AttestationRequestData({
                         recipient: address(0),
                         expirationTime: NO_EXPIRATION_TIME, // No expiration time
@@ -72,6 +72,6 @@ contract TaskAttester {
     }
 
     function getDoneTaskSkillSchema() public view returns (bytes32) {
-        return s_doneTaskSkillSchema;
+        return s_doneTaskSchema;
     }
 }
