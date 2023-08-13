@@ -16,8 +16,8 @@ contract ProjectAttester {
 
     function _attestProjectCreation(
         IEAS eas,
-        uint256 _projectId,
-        address _creator
+        address _creator,
+        address _safeContract
     ) internal returns (bytes32) {
         return
             eas.attest(
@@ -28,7 +28,7 @@ contract ProjectAttester {
                         expirationTime: NO_EXPIRATION_TIME, // No expiration time
                         revocable: true,
                         refUID: EMPTY_UID, // No references UI
-                        data: abi.encode(_projectId, _creator),
+                        data: abi.encode(_creator, _safeContract),
                         value: 0 // No value/ETH
                     })
                 })

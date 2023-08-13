@@ -53,7 +53,7 @@ contract Attester is
         bytes32 _projectCreationSchema,
         bytes32 _attestUserSchema
     )
-        SkillAttester(_attestSkillSchema, _endorseSkillSchema)
+        // SkillAttester(_attestSkillSchema, _endorseSkillSchema)
         TaskAttester(_attestTaskSchema, _doneTaskSkillSchema)
         ProjectAttester(_projectCreationSchema)
         UserAttester(_attestUserSchema)
@@ -82,13 +82,13 @@ contract Attester is
      *   Setters Functions
      */
 
-    function setAttestSkillSchema(bytes32 _schemaId) public onlyAuthorized {
-        _setAttestSkillSchema(_schemaId);
-    }
+    // function setAttestSkillSchema(bytes32 _schemaId) public onlyAuthorized {
+    //     _setAttestSkillSchema(_schemaId);
+    // }
 
-    function setEndorseSkillSchema(bytes32 _schemaId) public onlyAuthorized {
-        _setEndorseSkillSchema(_schemaId);
-    }
+    // function setEndorseSkillSchema(bytes32 _schemaId) public onlyAuthorized {
+    //     _setEndorseSkillSchema(_schemaId);
+    // }
 
     function setTaskSchema(bytes32 _schemaId) public onlyAuthorized {
         _setTaskSchema(_schemaId);
@@ -109,49 +109,40 @@ contract Attester is
     /*
      *   Attestments Functions
      */
-    function attestSkill(address _user, string calldata _skill) public {
-        _attestSkill(i_eas, _user, _skill);
+    // function attestSkill(address _user, string calldata _skill) internal {
+    //     _attestSkill(i_eas, _user, _skill);
+    // }
+
+    // function endorseSkill(
+    //     bytes32 _refUID,
+    //     address _from,
+    //     address _user,
+    //     bool _endorse
+    // ) internal {
+    //     _endorseSkill(i_eas, _refUID, _from, _user, _endorse);
+    // }
+
+    function attestUser(address _user) internal {
+        _attestUser(i_eas, _user, true);
     }
 
-    function endorseSkill(
-        bytes32 _refUID,
-        address _from,
-        address _user,
-        bool _endorse
-    ) public {
-        _endorseSkill(i_eas, _refUID, _from, _user, _endorse);
+    function attestTask(address _creator, uint256 _taskDeadLine) internal {
+        _attestTask(i_eas, _creator, _taskDeadLine);
     }
 
-    function attestTask(
-        uint256 _projectId,
-        uint256 _taskDeadline,
-        uint256 _taskWeight,
-        string memory _taskTitle,
-        string memory _taskDescription
-    ) public {
-        _attestTask(
-            i_eas,
-            _projectId,
-            _taskDeadline,
-            _taskWeight,
-            _taskTitle,
-            _taskDescription
-        );
-    }
-
-    function attestDoneTask(
-        bytes32 _refUID,
-        address _user,
-        bool _done
-    ) public onlyUser {
-        _attestDoneTask(i_eas, _refUID, _user, _done);
+    function attestApproveTaskDone(
+        address _projectCreator,
+        address _buidler,
+        bytes32 _taskUID
+    ) internal {
+        _attestApproveTaskDone(i_eas, _projectCreator, _builder, _taskUID);
     }
 
     function attestProjectCreation(
-        uint _projectId,
-        address _creator
-    ) public onlyUser {
-        _attestProjectCreation(i_eas, _projectId, _creator);
+        address _creator,
+        address _safeContract
+    ) internal {
+        _attestProjectCreation(i_eas, _creator, _safeContract);
     }
 
     /*

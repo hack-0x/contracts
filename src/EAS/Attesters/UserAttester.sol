@@ -28,7 +28,7 @@ contract UserAttester {
                         expirationTime: NO_EXPIRATION_TIME, // No expiration time
                         revocable: true,
                         refUID: EMPTY_UID,
-                        data: abi.encode(_isUser),
+                        data: abi.encode(true),
                         value: 0 // No value/ETH
                     })
                 })

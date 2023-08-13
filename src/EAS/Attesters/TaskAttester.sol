@@ -22,11 +22,8 @@ contract TaskAttester {
 
     function _attestTask(
         IEAS eas,
-        uint256 _projectId,
-        uint256 _taskDeadline,
-        uint256 _taskWeight,
-        string memory _taskTitle,
-        string memory _taskDescription
+        address _creator,
+        uint256 _taskDeadLine
     ) internal returns (bytes32) {
         return
             eas.attest(
@@ -37,24 +34,18 @@ contract TaskAttester {
                         expirationTime: NO_EXPIRATION_TIME, // No expiration time
                         revocable: true,
                         refUID: EMPTY_UID, // No references UI
-                        data: abi.encode(
-                            _projectId,
-                            _taskTitle,
-                            _taskDescription,
-                            _taskDeadline,
-                            _taskWeight
-                        ),
+                        data: abi.encode(_creator, _taskDeadline),
                         value: 0 // No value/ETH
                     })
                 })
             );
     }
 
-    function _attestDoneTask(
+    function _attestApproveTaskDone(
         IEAS eas,
-        bytes32 _refUID,
-        address _user,
-        bool _done
+        address _projectCreator,
+        address _builder,
+        bytes32 _taskUID
     ) internal returns (bytes32) {
         return
             eas.attest(
@@ -64,8 +55,8 @@ contract TaskAttester {
                         recipient: address(0),
                         expirationTime: NO_EXPIRATION_TIME, // No expiration time
                         revocable: true,
-                        refUID: _refUID,
-                        data: abi.encode(_user, _done),
+                        refUID: _taskUID,
+                        data: abi.encode(_builder, _projectCreator, true),
                         value: 0 // No value/ETH
                     })
                 })
