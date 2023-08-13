@@ -39,26 +39,6 @@ contract TaskDoneResolver is SchemaResolver {
         Attestation calldata attestation,
         uint256 value
     ) internal override returns (bool) {
-        (address who, bool done) = abi.decode(
-            attestation.data,
-            (address, bool)
-        );
-        if (done == false) {
-            return false;
-        }
-
-        // tasks attestation
-        Attestation memory refAttestation = i_eas.getAttestation(
-            attestation.refUID
-        );
-
-        (, , uint256 weight, , ) = abi.decode(
-            refAttestation.data,
-            (uint256, uint256, uint256, string, string)
-        );
-
-        // i_meritToken.mint(who, weight);
-
         return true;
     }
 
@@ -66,10 +46,6 @@ contract TaskDoneResolver is SchemaResolver {
         Attestation calldata attestation,
         uint256 /*value*/
     ) internal pure override returns (bool) {
-        (address who, ) = abi.decode(attestation.data, (address, bool));
-
-        // i_meritToken.burn(who, weight);
-
         return true;
     }
 
