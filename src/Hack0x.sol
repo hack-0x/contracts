@@ -248,7 +248,7 @@ contract Hack0x is Ownable, Attester {
 
         attestApproveTaskDone(msg.sender, buidler, task.easUID);
 
-        _addMerit(project, buidler, task.value);
+        _addMerit(project, buidler, task.taskValue);
         _addMerit(project, project.creator, 1); // reward creator with 1 merit for a task done
         task.taskCompleted = true;
     }
@@ -271,12 +271,12 @@ contract Hack0x is Ownable, Attester {
         uint256 teamShare = project.prize - DAOShare;
 
         // send DOA share to DAOPrizePool
-        prizePool.send(DAOShare); //TODO: safer? OZ Address?
+       // prizePool.send(DAOShare); //TODO: safer? OZ Address?
 
         // send team share to creators, buidlers and investors
         for (uint256 i = 0; i < project.team.length; i++) {
             uint memberShare = project.investors[project.team[i]]/project.totalInvestment +
-             project.merits[project.team[i]]/project.totalMerits; //TODO get it right :)
+             project.projectMerits[project.team[i]]/project.totalMerits; //TODO get it right :)
             address payable teamMember = payable(project.team[i]);
             teamMember.send(memberShare);
         }
@@ -284,9 +284,9 @@ contract Hack0x is Ownable, Attester {
         project.closed = true;
     }
 
-    function _addMerit(ProjectInfo memory project, address user, uint256 value) internal {
+    function _addMerit(ProjectInfo storage project, address user, uint256 value) internal {
         merit.mint(user, value);
-        project.merits[user] += value;
+        project.projectMerits[user] += value;
         project.totalMerits += value;
     }
 
