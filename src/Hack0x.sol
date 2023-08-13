@@ -7,8 +7,10 @@ import "./Hack0xManifesto.sol";
 import "./Hack0xDAOPrizePool.sol";
 import "./EAS/Attesters/Attester.sol";
 import "@openzeppelin-latest/contracts/access/Ownable.sol";
+import "@openzeppelin-latest/contracts/security/ReentrancyGuard.sol";
 
-contract Hack0x is Ownable, Attester {
+
+contract Hack0x is Ownable, Attester, ReentrancyGuard {
   
     enum PrizeDistributionType {
         EQUAL,
@@ -19,6 +21,7 @@ contract Hack0x is Ownable, Attester {
         // roles, skills - offchain
         bool joined;
         uint256[] projects; // array of project ids the user is a part of
+        uint256 totalInvested; // total amount invested by user
     }
 
     struct HackathonInfo {
@@ -90,15 +93,7 @@ contract Hack0x is Ownable, Attester {
             hackathonInfos[project.hackathonId].endTimestamp > block.timestamp,
             "Project's hackathon must not have ended"
         );
-        _;
-    }
-
-    modifier projectClosed(uint256 projectId) {
-        ProjectInfo storage project = projectInfos[projectId];
-       // require(
-       //     hackathonInfos[project.hackathonId].endTimestamp < block.timestamp, "Project's hackathon must have ended"
-       // ); // TODO or not?
-        require(project.closed, "Project must be closed");
+        require(project.closed == false, "Project must not be closed");
         _;
     }
 
@@ -147,9 +142,7 @@ contract Hack0x is Ownable, Attester {
         uint256 predictiveValue
     ) public returns (uint256 projectId) {
         require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
-        // ProjectInfo storage projectInfo = ProjectInfo(
-        //     SAFE, hackathonId, prizeDistributionType, predictiveValue, 0, [msg.sender], new Task[](0), false
-        // );
+        require(userInfos[msg.sender].joined == true, "User must have joined DAO");
 
         projectId = projectInfos.length;
         ProjectInfo storage project = projectInfos.push();
@@ -188,6 +181,7 @@ contract Hack0x is Ownable, Attester {
         if (buidler!= project.creator && project.investors[buidler] == 0) project.team.push(buidler);
         project.isBuidler[buidler] = true;
         userInfos[buidler].projects.push(projectId);
+        project.team.push(buidler);
         _addMerit(project, project.creator, 1); // reward creator with 1 merit for accepting a new buidler
         delete project.joinRequests[buidler];
     }
@@ -235,7 +229,11 @@ contract Hack0x is Ownable, Attester {
         task.pickedUpBy = address(0);
     }
 
-    function approveTaskDone(uint256 projectId, uint256 taskId, address buidler) external projectLive(projectId) {
+    function approveTaskDone(uint256 projectId, uint256 taskId, address buidler) 
+        external
+        projectLive(projectId)
+        onlyCreator(projectId)
+    {
         ProjectInfo storage project = projectInfos[projectId];
         Task storage task = project.tasks[taskId];
 
@@ -253,34 +251,52 @@ contract Hack0x is Ownable, Attester {
         task.taskCompleted = true;
     }
 
-    function invest(uint256 projectId) external payable {
-        //projectLive(projectId)?
+    function invest(uint256 projectId) external payable projectLive(projectId) {
         require(msg.value > 0, "Must send more than 0 OP");
         require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
         ProjectInfo storage project = projectInfos[projectId];
-        if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
-            project.team.push(msg.sender);
+      //  if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
+        //    project.team.push(msg.sender);
         project.investors[msg.sender] += msg.value;
         project.totalInvestment += msg.value;
+        project.prize += msg.value;
+        userInfos[msg.sender].totalInvested += msg.value;
     }
 
-    function closeProject(uint256 projectId) external onlyCreator(projectId) {
+    function win(uint256 projectId) external payable{
+        require(msg.value > 0, "Must send more than 0 OP");
+        ProjectInfo storage project = projectInfos[projectId];
+        require(!project.closed, "Project is closed");
+        project.prize += msg.value;
+    }
+
+    function closeProject(uint256 projectId) external onlyCreator(projectId) nonReentrant() {
         ProjectInfo storage project = projectInfos[projectId];
         _addMerit(project, msg.sender, 3); // reward creator with 3 merits for finishing project
+
         uint256 DAOShare = project.prize * DAOSharePercentage / 100;
         uint256 teamShare = project.prize - DAOShare;
 
         // send DOA share to DAOPrizePool
-       // prizePool.send(DAOShare); //TODO: safer? OZ Address?
+        bool sent = payable(prizePool).send(DAOShare); //TODO: safer? OZ Address?
+        require(sent, "Failed to send OP to DAO Prize Pool");
 
-        // send team share to creators, buidlers and investors
-        for (uint256 i = 0; i < project.team.length; i++) {
-            uint memberShare = project.investors[project.team[i]]/project.totalInvestment +
-             project.projectMerits[project.team[i]]/project.totalMerits; //TODO get it right :)
-            address payable teamMember = payable(project.team[i]);
-            teamMember.send(memberShare);
+        if (project.prizeDistributionType == PrizeDistributionType.EQUAL) {
+            // send team share to all team members
+            for (uint256 i = 0; i < project.team.length; i++) {
+                uint memberShare = teamShare / project.team.length;
+                address payable teamMember = payable(project.team[i]);
+                sent = teamMember.send(memberShare);
+                require(sent, "Failed to send OP to team member");
+            }
+        } else if (project.prizeDistributionType == PrizeDistributionType.MERIT) {
+            // send team share by merit
+            for (uint256 i = 0; i < project.team.length; i++) {
+                uint memberShare = (project.projectMerits[project.team[i]]/project.totalMerits) * teamShare;
+                address payable teamMember = payable(project.team[i]);
+                sent = teamMember.send(memberShare);
+                require(sent, "Failed to send OP to team member");            }
         }
-
         project.closed = true;
     }
 
