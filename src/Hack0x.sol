@@ -261,7 +261,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         task.taskCompleted = true;
     }
 
-    function invest(uint256 projectId) external payable projectLive(projectId) {
+    function invest(uint256 projectId) external payable onlyDAOMembers() projectLive(projectId) {
         require(msg.value > 0, "Must send more than 0 OP");
         ProjectInfo storage project = projectInfos[projectId];
         //  if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
