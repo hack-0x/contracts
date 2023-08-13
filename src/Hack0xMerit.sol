@@ -9,7 +9,10 @@ contract Hack0xMerit is ERC20, AccessControl {
         grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function mint(address to, uint256 amount) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function mint(
+        address to,
+        uint256 amount
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _mint(to, amount);
     }
 
