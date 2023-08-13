@@ -14,10 +14,7 @@ contract ScaffoldETHDeploy is Script {
     string path;
     Deployment[] public deployments;
 
-    function setupLocalhostEnv()
-        internal
-        returns (uint256 localhostPrivateKey)
-    {
+    function setupLocalhostEnv() internal returns (uint256 localhostPrivateKey) {
         if (block.chainid == 31337) {
             root = vm.projectRoot();
             path = string.concat(root, "/localhost.json");
@@ -27,14 +24,6 @@ contract ScaffoldETHDeploy is Script {
             return vm.deriveKey(mnemonic, 0);
         } else {
             return vm.envUint("DEPLOYER_PRIVATE_KEY");
-        }
-    }
-
-    function getEASContract() internal view returns (address EASContract) {
-        if (block.chainid == 420) {
-            return address(0x1a5650D0EcbCa349DD84bAFa85790E3e6955eb84);
-        } else {
-            return address(1);
         }
     }
 
@@ -50,11 +39,7 @@ contract ScaffoldETHDeploy is Script {
         uint256 len = deployments.length;
 
         for (uint256 i = 0; i < len; i++) {
-            vm.serializeString(
-                jsonWrite,
-                vm.toString(deployments[i].addr),
-                deployments[i].name
-            );
+            vm.serializeString(jsonWrite, vm.toString(deployments[i].addr), deployments[i].name);
         }
 
         string memory chainName = getChain(block.chainid).name;
@@ -74,17 +59,9 @@ contract ScaffoldETHDeploy is Script {
         uint256 len = deployments.length;
 
         for (uint256 i = 0; i < len; i++) {
-            vm.serializeString(
-                jsonWrite,
-                vm.toString(deployments[i].addr),
-                deployments[i].name
-            );
+            vm.serializeString(jsonWrite, vm.toString(deployments[i].addr), deployments[i].name);
         }
-        jsonWrite = vm.serializeString(
-            jsonWrite,
-            "networkName",
-            customChainName
-        );
+        jsonWrite = vm.serializeString(jsonWrite, "networkName", customChainName);
         vm.writeJson(jsonWrite, path);
     }
 }
