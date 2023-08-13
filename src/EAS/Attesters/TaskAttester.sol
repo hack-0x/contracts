@@ -20,47 +20,39 @@ contract TaskAttester {
         s_doneTaskSchema = _schemaId;
     }
 
-    function _attestTask(
-        IEAS eas,
-        address _creator,
-        uint256 _taskDeadLine
-    ) internal returns (bytes32) {
-        return
-            eas.attest(
-                AttestationRequest({
-                    schema: s_taskSchema, // attest skill schema
-                    data: AttestationRequestData({
-                        recipient: address(0), // No recipient
-                        expirationTime: NO_EXPIRATION_TIME, // No expiration time
-                        revocable: true,
-                        refUID: EMPTY_UID, // No references UI
-                        data: abi.encode(_creator, _taskDeadLine),
-                        value: 0 // No value/ETH
-                    })
+    function _attestTask(IEAS eas, address _creator, uint256 _taskDeadLine) internal returns (bytes32) {
+        return eas.attest(
+            AttestationRequest({
+                schema: s_taskSchema, // attest skill schema
+                data: AttestationRequestData({
+                    recipient: address(0), // No recipient
+                    expirationTime: NO_EXPIRATION_TIME, // No expiration time
+                    revocable: true,
+                    refUID: EMPTY_UID, // No references UI
+                    data: abi.encode(_creator, _taskDeadLine),
+                    value: 0 // No value/ETH
                 })
-            );
+            })
+        );
     }
 
-    function _attestApproveTaskDone(
-        IEAS eas,
-        address _projectCreator,
-        address _builder,
-        bytes32 _taskUID
-    ) internal returns (bytes32) {
-        return
-            eas.attest(
-                AttestationRequest({
-                    schema: s_doneTaskSchema, //endore schema
-                    data: AttestationRequestData({
-                        recipient: address(0),
-                        expirationTime: NO_EXPIRATION_TIME, // No expiration time
-                        revocable: true,
-                        refUID: _taskUID,
-                        data: abi.encode(_builder, _projectCreator, true),
-                        value: 0 // No value/ETH
-                    })
+    function _attestApproveTaskDone(IEAS eas, address _projectCreator, address _builder, bytes32 _taskUID)
+        internal
+        returns (bytes32)
+    {
+        return eas.attest(
+            AttestationRequest({
+                schema: s_doneTaskSchema, //endore schema
+                data: AttestationRequestData({
+                    recipient: address(0),
+                    expirationTime: NO_EXPIRATION_TIME, // No expiration time
+                    revocable: true,
+                    refUID: _taskUID,
+                    data: abi.encode(_builder, _projectCreator, true),
+                    value: 0 // No value/ETH
                 })
-            );
+            })
+        );
     }
 
     /*

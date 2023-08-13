@@ -14,25 +14,20 @@ contract ProjectAttester {
         s_projectCreationSchema = _schemaId;
     }
 
-    function _attestProjectCreation(
-        IEAS eas,
-        address _creator,
-        address _safeContract
-    ) internal returns (bytes32) {
-        return
-            eas.attest(
-                AttestationRequest({
-                    schema: s_projectCreationSchema, // attest skill schema
-                    data: AttestationRequestData({
-                        recipient: address(0), // No recipient
-                        expirationTime: NO_EXPIRATION_TIME, // No expiration time
-                        revocable: true,
-                        refUID: EMPTY_UID, // No references UI
-                        data: abi.encode(_creator, _safeContract),
-                        value: 0 // No value/ETH
-                    })
+    function _attestProjectCreation(IEAS eas, address _creator, address _safeContract) internal returns (bytes32) {
+        return eas.attest(
+            AttestationRequest({
+                schema: s_projectCreationSchema, // attest skill schema
+                data: AttestationRequestData({
+                    recipient: address(0), // No recipient
+                    expirationTime: NO_EXPIRATION_TIME, // No expiration time
+                    revocable: true,
+                    refUID: EMPTY_UID, // No references UI
+                    data: abi.encode(_creator, _safeContract),
+                    value: 0 // No value/ETH
                 })
-            );
+            })
+        );
     }
 
     /*

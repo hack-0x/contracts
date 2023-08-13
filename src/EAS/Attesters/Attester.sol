@@ -8,12 +8,7 @@ import {TaskAttester} from "./TaskAttester.sol";
 import {ProjectAttester} from "./ProjectAttester.sol";
 import {UserAttester} from "./UserAttester.sol";
 
-contract Attester is
-    SkillAttester,
-    TaskAttester,
-    ProjectAttester,
-    UserAttester
-{
+contract Attester is SkillAttester, TaskAttester, ProjectAttester, UserAttester {
     address s_hackContract;
     IEAS private immutable i_eas;
     mapping(address => bool) private s_Authorized;
@@ -130,18 +125,11 @@ contract Attester is
         _attestTask(i_eas, _creator, _taskDeadLine);
     }
 
-    function attestApproveTaskDone(
-        address _projectCreator,
-        address _buidler,
-        bytes32 _taskUID
-    ) internal {
+    function attestApproveTaskDone(address _projectCreator, address _buidler, bytes32 _taskUID) internal {
         _attestApproveTaskDone(i_eas, _projectCreator, _buidler, _taskUID);
     }
 
-    function attestProjectCreation(
-        address _creator,
-        address _safeContract
-    ) internal {
+    function attestProjectCreation(address _creator, address _safeContract) internal {
         _attestProjectCreation(i_eas, _creator, _safeContract);
     }
 
@@ -149,9 +137,7 @@ contract Attester is
      *   Getter Functions
      */
 
-    function isAdminAuthorized(
-        address _user
-    ) public view returns (bool isAuthorized) {
+    function isAdminAuthorized(address _user) public view returns (bool isAuthorized) {
         return s_Authorized[_user];
     }
 

@@ -47,7 +47,7 @@ contract Hack0x is Ownable, Attester {
         uint256 taskValue;
         uint256 taskDeadline;
         bool taskCompleted;
-        bytes32 eas_UID;
+        bytes32 easUID;
     }
 
     struct OnboardingQuest {
@@ -85,10 +85,7 @@ contract Hack0x is Ownable, Attester {
     bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
 
     modifier onlyCreator(address SAFE) {
-        require(
-            projectInfos[SAFE].isCreator[msg.sender],
-            "User must be a creator"
-        );
+        require(projectInfos[SAFE].isCreator[msg.sender], "User must be a creator");
         _;
     }
 
@@ -110,8 +107,7 @@ contract Hack0x is Ownable, Attester {
     modifier projectClosed(address SAFE) {
         ProjectInfo project = projectInfos[SAFE];
         require(
-            hackathonInfos[project.hackathonId].endTimestamp < block.timestamp,
-            "Project's hackathon must have ended"
+            hackathonInfos[project.hackathonId].endTimestamp < block.timestamp, "Project's hackathon must have ended"
         ); //or not?
         require(project.closed, "Project must be closed");
         _;
@@ -123,16 +119,7 @@ contract Hack0x is Ownable, Attester {
         bytes32 _doneTaskSchema,
         bytes32 _projectCreationSchema,
         bytes32 _attestUserSchema
-    )
-        Attester(
-            EAS,
-            msg.sender,
-            _attestTaskSchema,
-            _doneTaskSchema,
-            _projectCreationSchema,
-            _attestUserSchema
-        )
-    {
+    ) Attester(EAS, msg.sender, _attestTaskSchema, _doneTaskSchema, _projectCreationSchema, _attestUserSchema) {
         owner = msg.sender;
         manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
         merit = new Hack0xMerit(); // create merit token from within the contract, making this contract it's admin
@@ -141,18 +128,9 @@ contract Hack0x is Ownable, Attester {
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
     }
 
-    function createHackathon(
-        uint256 startTimestamp,
-        uint256 endTimestamp
-    ) public onlyOwner returns (uint256) {
-        require(
-            startTimestamp < endTimestamp,
-            "startTimestamp must be before endTimestamp"
-        );
-        HackathonInfo memory hackathonInfo = HackathonInfo(
-            startTimestamp,
-            endTimestamp
-        );
+    function createHackathon(uint256 startTimestamp, uint256 endTimestamp) public onlyOwner returns (uint256) {
+        require(startTimestamp < endTimestamp, "startTimestamp must be before endTimestamp");
+        HackathonInfo memory hackathonInfo = HackathonInfo(startTimestamp, endTimestamp);
         hackathonInfos.push(hackathonInfo);
         return hackathonInfos.length - 1;
     }
@@ -170,24 +148,11 @@ contract Hack0x is Ownable, Attester {
         PrizeDistributionType prizeDistributionType,
         uint256 predictiveValue
     ) public {
-        require(
-            hackathonInfos[hackathonId].endTimestamp > block.timestamp,
-            "Hackathon must not have ended"
-        );
-        require(
-            projectInfos[SAFE].creators.length == 0,
-            "Project already exists"
-        );
+        require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
+        require(projectInfos[SAFE].creators.length == 0, "Project already exists");
         require(SAFE != address(0), "SAFE address must be set");
         ProjectInfo memory projectInfo = ProjectInfo(
-            SAFE,
-            hackathonId,
-            prizeDistributionType,
-            predictiveValue,
-            0,
-            [msg.sender],
-            new Task[](0),
-            false
+            SAFE, hackathonId, prizeDistributionType, predictiveValue, 0, [msg.sender], new Task[](0), false
         );
         projectInfos[SAFE] = projectInfo;
         projectInfos[SAFE].isCreator[msg.sender] = true;
@@ -197,43 +162,29 @@ contract Hack0x is Ownable, Attester {
         userInfos[msg.sender].projects.push(SAFE);
     }
 
-    function requestToJoinProject(
-        address SAFE,
-        string link
-    ) external projectExists(SAFE) {
+    function requestToJoinProject(address SAFE, string link) external projectExists(SAFE) {
         projectInfos[SAFE].joinRequests[msg.sender] = link;
     }
 
-    function getJoinRequestLink(
-        address SAFE,
-        address buidler
-    ) external view returns (string memory) {
+    function getJoinRequestLink(address SAFE, address buidler) external view returns (string memory) {
         return projectInfos[SAFE].joinRequests[buidler];
     }
 
-    function approveJoinRequest(
-        address SAFE,
-        address buidler
-    ) external projectLive(SAFE) onlyCreator(SAFE) {
+    function approveJoinRequest(address SAFE, address buidler) external projectLive(SAFE) onlyCreator(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
-        require(
-            project.joinRequests[buidler] != "",
-            "buidler must have requested to join"
-        );
-        require(
-            !project.isBuidler[buidler],
-            "buidler is already a buidler on this project"
-        );
+        require(project.joinRequests[buidler] != "", "buidler must have requested to join");
+        require(!project.isBuidler[buidler], "buidler is already a buidler on this project");
         project.isBuidler[buidler] = true;
         userInfos[buidler].projects.push(SAFE);
         delete project.joinRequests[buidler];
     }
 
-    function createTask(
-        address SAFE,
-        uint256 value,
-        uint256 deadline
-    ) external projectLive(SAFE) onlyCreator(SAFE) returns (uint256) {
+    function createTask(address SAFE, uint256 value, uint256 deadline)
+        external
+        projectLive(SAFE)
+        onlyCreator(SAFE)
+        returns (uint256)
+    {
         require(value > 0 && value < 6, "Task value must be between 1 and 5");
         require(deadline > block.timestamp, "Deadline must be in the future");
         ProjectInfo storage project = projectInfos[SAFE];
@@ -241,23 +192,17 @@ contract Hack0x is Ownable, Attester {
         project.tasks.push(task);
 
         // add task UID to task after attesting
-        task.eas_UID = attestTask(msg.sender, deadline);
+        task.easUID = attestTask(msg.sender, deadline);
 
         return project.tasks.length - 1;
     }
 
-    function pickUpTask(
-        address SAFE,
-        uint256 taskId
-    ) external projectLive(SAFE) {
+    function pickUpTask(address SAFE, uint256 taskId) external projectLive(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
         Task storage task = project.tasks[taskId];
         require(!task.done, "Task must not be done");
         require(task.deadline > block.timestamp, "Task must not be overdue");
-        require(
-            project.isBuidler[msg.sender],
-            "User must be a buidler of the project"
-        );
+        require(project.isBuidler[msg.sender], "User must be a buidler of the project");
         require(task.pickedUpBy == address(0), "Task already picked up");
         task.pickedUpBy = msg.sender;
     }
@@ -267,35 +212,22 @@ contract Hack0x is Ownable, Attester {
         Task storage task = project.tasks[taskId];
         require(!task.done, "Task must not be done");
         require(task.deadline > block.timestamp, "Task must not be overdue");
-        require(
-            task.pickedUpBy == msg.sender,
-            "Task must have been picked up by the sender"
-        );
+        require(task.pickedUpBy == msg.sender, "Task must have been picked up by the sender");
         task.pickedUpBy = address(0);
     }
 
-    function approveTaskDone(
-        address SAFE,
-        uint256 taskId,
-        address buidler
-    ) external projectLive(SAFE) {
+    function approveTaskDone(address SAFE, uint256 taskId, address buidler) external projectLive(SAFE) {
         ProjectInfo storage project = projectInfos[SAFE];
         Task storage task = project.tasks[taskId];
 
         // get task UID
 
-        require(
-            task.creator == msg.sender,
-            "Approver must be the creator of the task"
-        );
+        require(task.creator == msg.sender, "Approver must be the creator of the task");
         require(!task.done, "Task must not be done");
         require(task.deadline > block.timestamp, "Task must not be overdue");
-        require(
-            task.pickedUpBy == buidler,
-            "Task must have been picked up by the buidler"
-        );
+        require(task.pickedUpBy == buidler, "Task must have been picked up by the buidler");
 
-        attestApproveTaskDone(msg.sender, buidler, task.eas_UID);
+        attestApproveTaskDone(msg.sender, buidler, task.easUID);
 
         merit.mint(buidler, task.value);
         task.done = true;
@@ -304,10 +236,7 @@ contract Hack0x is Ownable, Attester {
     function invest(address SAFE) external payable {
         //projectLive(SAFE)?
         require(msg.value > 0, "Must send more than 0 OP");
-        require(
-            userInfos[msg.sender].joined,
-            "Sender must have joined the DAO"
-        );
+        require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
         ProjectInfo storage project = projectInfos[SAFE];
         if (project.investors[msg.sender] == 0) project.team.push(msg.sender);
         project.investors[msg.sender] += msg.value;
@@ -326,10 +255,8 @@ contract Hack0x is Ownable, Attester {
 
         // send team share to creators, buidlers and investors
         for (uint256 i = 0; i < project.team.length; i++) {
-            uint memberShare = project.investors[project.team[i]] /
-                project.totalInvestment +
-                project.merits[project.team[i]] /
-                project.totalMerits; //TODO get it right :)
+            uint256 memberShare = project.investors[project.team[i]] / project.totalInvestment
+                + project.merits[project.team[i]] / project.totalMerits; //TODO get it right :)
             address payable teamMember = payable(project.team[i]);
             teamMember.send(memberShare);
         }
@@ -350,12 +277,8 @@ contract Hack0x is Ownable, Attester {
     }
 
     function withdraw() external {
-        require(
-            userInfos[msg.sender].userType != UserType(0),
-            "User has not joined the DAO"
-        );
-        uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) *
-            address(this).balance; // ?
+        require(userInfos[msg.sender].userType != UserType(0), "User has not joined the DAO");
+        uint256 amount = (merit.balanceOf(msg.sender) / merit.totalSupply()) * address(this).balance; // ?
     }
 
     /*
