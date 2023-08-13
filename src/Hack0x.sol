@@ -66,7 +66,9 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
 
     IHack0xMerit public immutable merit;
     Hack0xManifesto public immutable manifesto;
-    Hack0xDAOPrizePool public immutable prizePool;
+
+    uint256 public DAOPrizePool;
+    uint256 public totalInvested;
 
     mapping(address => UserInfo) public userInfos;
     HackathonInfo[] public hackathonInfos;
@@ -75,6 +77,11 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
     uint256 constant MAX_INT = 2 ** 256 - 1;
     uint256 constant DAOSharePercentage = 40; // 40% of all prizes go to the DAO
     bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
+
+    modifier onlyDAOMembers() {
+        require(UserInfo[msg.sender].joined == true, "User must be a DAO member");
+        _;
+    }
 
     modifier onlyCreator(uint256 projectId) {
         require(projectInfos[projectId].creator == msg.sender, "User must be the creator of the project");
@@ -140,9 +147,8 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         uint256 hackathonId,
         PrizeDistributionType prizeDistributionType,
         uint256 predictiveValue
-    ) public returns (uint256 projectId) {
+    ) public onlyDAOMembers() returns (uint256 projectId) {
         require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
-        require(userInfos[msg.sender].joined == true, "User must have joined DAO");
 
         projectId = projectInfos.length;
         ProjectInfo storage project = projectInfos.push();
@@ -163,7 +169,11 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         projectInfos[projectId].SAFE = SAFE;
     }
 
-    function requestToJoinProject(uint256 projectId, string memory link) external projectExists(projectId) {
+    function requestToJoinProject(uint256 projectId, string memory link)
+        external
+        onlyDAOMembers()
+        projectLive(projectId)
+    {
         projectInfos[projectId].joinRequests[msg.sender] = link;
     }
 
@@ -251,9 +261,8 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         task.taskCompleted = true;
     }
 
-    function invest(uint256 projectId) external payable projectLive(projectId) {
+    function invest(uint256 projectId) external payable projectLive(projectId) onlyDAOMembers() {
         require(msg.value > 0, "Must send more than 0 OP");
-        require(userInfos[msg.sender].joined, "Sender must have joined the DAO");
         ProjectInfo storage project = projectInfos[projectId];
       //  if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
         //    project.team.push(msg.sender);
@@ -261,6 +270,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         project.totalInvestment += msg.value;
         project.prize += msg.value;
         userInfos[msg.sender].totalInvested += msg.value;
+        totalInvested += msg.value;
     }
 
     function win(uint256 projectId) external payable{
@@ -278,13 +288,12 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         uint256 teamShare = project.prize - DAOShare;
 
         // send DOA share to DAOPrizePool
-        bool sent = payable(prizePool).send(DAOShare); //TODO: safer? OZ Address?
-        require(sent, "Failed to send OP to DAO Prize Pool");
+        DAOPrizePool += DAOShare;
 
         if (project.prizeDistributionType == PrizeDistributionType.EQUAL) {
             // send team share to all team members
             for (uint256 i = 0; i < project.team.length; i++) {
-                uint memberShare = teamShare / project.team.length;
+                uint256 memberShare = teamShare / project.team.length;
                 address payable teamMember = payable(project.team[i]);
                 sent = teamMember.send(memberShare);
                 require(sent, "Failed to send OP to team member");
@@ -292,12 +301,23 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         } else if (project.prizeDistributionType == PrizeDistributionType.MERIT) {
             // send team share by merit
             for (uint256 i = 0; i < project.team.length; i++) {
-                uint memberShare = (project.projectMerits[project.team[i]]/project.totalMerits) * teamShare;
+                uint256 memberShare = (project.projectMerits[project.team[i]]/project.totalMerits) * teamShare;
                 address payable teamMember = payable(project.team[i]);
                 sent = teamMember.send(memberShare);
                 require(sent, "Failed to send OP to team member");            }
         }
         project.closed = true;
+    }
+
+    function withdrawFromPrizePool() external onlyDAOMembers() nonReentrant() {
+        require(DAOPrizePool > 0, "DAO prize pool must be greater than 0");
+        uint256 memberShare = merit.balanceOf(msg.sender) / merit.totalSupply()
+            + userInfos[msg.sender].totalInvested / totalInvested;
+        uint256 prize = DAOPrizePool * memberShare;
+        DAOPrizePool -= prize;
+        address payable sender = payable(msg.sender);
+        bool sent = sender.send(prize);
+        require(sent, "Failed to send OP to sender");
     }
 
     function _addMerit(ProjectInfo storage project, address user, uint256 value) internal {
