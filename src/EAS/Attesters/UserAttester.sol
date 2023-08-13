@@ -14,25 +14,20 @@ contract UserAttester {
         s_userAttesterSchema = _schemaId;
     }
 
-    function _attestUser(
-        IEAS eas,
-        address _user,
-        bool _isUser
-    ) internal returns (bytes32) {
-        return
-            eas.attest(
-                AttestationRequest({
-                    schema: s_userAttesterSchema, // Attest user schema
-                    data: AttestationRequestData({
-                        recipient: _user,
-                        expirationTime: NO_EXPIRATION_TIME, // No expiration time
-                        revocable: true,
-                        refUID: EMPTY_UID,
-                        data: abi.encode(_isUser),
-                        value: 0 // No value/ETH
-                    })
+    function _attestUser(IEAS eas, address _user, bool _isUser) internal returns (bytes32) {
+        return eas.attest(
+            AttestationRequest({
+                schema: s_userAttesterSchema, // Attest user schema
+                data: AttestationRequestData({
+                    recipient: _user,
+                    expirationTime: NO_EXPIRATION_TIME, // No expiration time
+                    revocable: true,
+                    refUID: EMPTY_UID,
+                    data: abi.encode(_isUser),
+                    value: 0 // No value/ETH
                 })
-            );
+            })
+        );
     }
 
     function getUserAttesterSchema() public view returns (bytes32) {

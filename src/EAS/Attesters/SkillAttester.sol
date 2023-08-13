@@ -20,48 +20,39 @@ contract SkillAttester {
         s_endorseSkillSchema = _schemaId;
     }
 
-    function _attestSkill(
-        IEAS eas,
-        address _user,
-        string memory _skill
-    ) internal returns (bytes32) {
-        return
-            eas.attest(
-                AttestationRequest({
-                    schema: s_attestSkillSchema, // attest skill schema
-                    data: AttestationRequestData({
-                        recipient: _user, // No recipient
-                        expirationTime: NO_EXPIRATION_TIME, // No expiration time
-                        revocable: true,
-                        refUID: EMPTY_UID, // No references UI
-                        data: abi.encode(_skill),
-                        value: 0 // No value/ETH
-                    })
+    function _attestSkill(IEAS eas, address _user, string memory _skill) internal returns (bytes32) {
+        return eas.attest(
+            AttestationRequest({
+                schema: s_attestSkillSchema, // attest skill schema
+                data: AttestationRequestData({
+                    recipient: _user, // No recipient
+                    expirationTime: NO_EXPIRATION_TIME, // No expiration time
+                    revocable: true,
+                    refUID: EMPTY_UID, // No references UI
+                    data: abi.encode(_skill),
+                    value: 0 // No value/ETH
                 })
-            );
+            })
+        );
     }
 
-    function _endorseSkill(
-        IEAS eas,
-        bytes32 _refUID,
-        address _from,
-        address _user,
-        bool _endorse
-    ) internal returns (bytes32) {
-        return
-            eas.attest(
-                AttestationRequest({
-                    schema: s_endorseSkillSchema, //endore schema
-                    data: AttestationRequestData({
-                        recipient: _user,
-                        expirationTime: NO_EXPIRATION_TIME, // No expiration time
-                        revocable: true,
-                        refUID: _refUID,
-                        data: abi.encode(_from, _endorse),
-                        value: 0 // No value/ETH
-                    })
+    function _endorseSkill(IEAS eas, bytes32 _refUID, address _from, address _user, bool _endorse)
+        internal
+        returns (bytes32)
+    {
+        return eas.attest(
+            AttestationRequest({
+                schema: s_endorseSkillSchema, //endore schema
+                data: AttestationRequestData({
+                    recipient: _user,
+                    expirationTime: NO_EXPIRATION_TIME, // No expiration time
+                    revocable: true,
+                    refUID: _refUID,
+                    data: abi.encode(_from, _endorse),
+                    value: 0 // No value/ETH
                 })
-            );
+            })
+        );
     }
 
     /*
