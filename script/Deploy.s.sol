@@ -55,6 +55,8 @@ contract DeployScript is Script {
             
         );
 
+        hack0x.initialize();
+
         vm.stopBroadcast();
         /**
          * This function generates the file containing the contracts Abi definitions.

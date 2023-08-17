@@ -9,9 +9,7 @@ import "./EAS/Attesters/Attester.sol";
 import "@openzeppelin-latest/contracts/access/Ownable.sol";
 import "@openzeppelin-latest/contracts/security/ReentrancyGuard.sol";
 
-
 contract Hack0x is Ownable, Attester, ReentrancyGuard {
-  
     enum PrizeDistributionType {
         EQUAL,
         MERIT
@@ -58,14 +56,15 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         Task[] tasks;
         bool closed;
         uint256 totalMerits; // total merits earned on project
-        mapping (address => uint256) projectMerits; // mapping of creator/buidler address to merits earned on project
+        mapping(address => uint256) projectMerits; // mapping of creator/buidler address to merits earned on project
         mapping(address => string) joinRequests; // mapping of buidler address to link to their work
         mapping(address => bool) isBuidler;
         mapping(address => uint256) investors; // mapping of investor address to amount invested
     }
 
-    IHack0xMerit public immutable merit;
+    Hack0xMerit public immutable merit;
     Hack0xManifesto public immutable manifesto;
+    Hack0xDAOPrizePool public prizePool;
 
     uint256 public DAOPrizePool;
     uint256 public totalInvested;
@@ -79,7 +78,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
     bytes32 constant DEFAULT_ADMIN_ROLE = 0x00;
 
     modifier onlyDAOMembers() {
-        require(UserInfo[msg.sender].joined == true, "User must be a DAO member");
+        require(userInfos[msg.sender].joined == true, "User must be a DAO member");
         _;
     }
 
@@ -117,10 +116,18 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         // _owner = msg.sender;
         manifesto = new Hack0xManifesto(); // create manifesto token from within the contract, making this contract it's admin
         merit = new Hack0xMerit(); // create merit Token to be able to mint to within the contract
-        merit.grantRole(DEFAULT_ADMIN_ROLE, address(this)); // grant EAS the ability to mint merit tokens
+        // merit.grantRole(DEFAULT_ADMIN_ROLE, address(this)); // grant EAS the ability to mint merit tokens
         prizePool = new Hack0xDAOPrizePool(address(merit)); // create DAO prize pool contract
-        merit.grantRole(DEFAULT_ADMIN_ROLE, address(prizePool)); //
         createHackathon(0, MAX_INT); // hackathon 0 that means no hackathon
+    }
+
+    function initialize() public onlyOwner {
+        grantMinter(address(prizePool));
+    }
+
+    function grantMinter(address minter) public onlyOwner {
+        merit.addMinter(minter);
+        // merit.grantRole(DEFAULT_ADMIN_ROLE, address(prizePool)); //
     }
 
     /**
@@ -143,11 +150,11 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         userInfos[msg.sender].joined = true;
     }
 
-    function createProject(
-        uint256 hackathonId,
-        PrizeDistributionType prizeDistributionType,
-        uint256 predictiveValue
-    ) public onlyDAOMembers() returns (uint256 projectId) {
+    function createProject(uint256 hackathonId, PrizeDistributionType prizeDistributionType, uint256 predictiveValue)
+        public
+        onlyDAOMembers
+        returns (uint256 projectId)
+    {
         require(hackathonInfos[hackathonId].endTimestamp > block.timestamp, "Hackathon must not have ended");
 
         projectId = projectInfos.length;
@@ -171,7 +178,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
 
     function requestToJoinProject(uint256 projectId, string memory link)
         external
-        onlyDAOMembers()
+        onlyDAOMembers
         projectLive(projectId)
     {
         projectInfos[projectId].joinRequests[msg.sender] = link;
@@ -181,7 +188,11 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         return projectInfos[projectId].joinRequests[buidler];
     }
 
-    function approveJoinRequest(uint256 projectId, address buidler) external projectLive(projectId) onlyCreator(projectId) {
+    function approveJoinRequest(uint256 projectId, address buidler)
+        external
+        projectLive(projectId)
+        onlyCreator(projectId)
+    {
         ProjectInfo storage project = projectInfos[projectId];
         require(
             keccak256(abi.encodePacked(project.joinRequests[buidler])) != keccak256(abi.encodePacked("")),
@@ -261,7 +272,7 @@ contract Hack0x is Ownable, Attester, ReentrancyGuard {
         task.taskCompleted = true;
     }
 
-    function invest(uint256 projectId) external payable onlyDAOMembers() projectLive(projectId) {
+    function invest(uint256 projectId) external payable onlyDAOMembers projectLive(projectId) {
         require(msg.value > 0, "Must send more than 0 OP");
         ProjectInfo storage project = projectInfos[projectId];
         //  if (project.investors[msg.sender] == 0 && project.creator != msg.sender && !project.isBuidler[msg.sender])
